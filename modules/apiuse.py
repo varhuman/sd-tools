@@ -1,4 +1,4 @@
-import utils as api
+import modules.utils as api
 
 modeltitle = "nightSkyYOZORAStyle_yozoraV1Origin.safetensors [e7bf829cff]"
 input_image_url = "C:/Users/Ieunn/Pictures/00013-814328471.jpg"

@@ -1,20 +1,56 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 import requests
-from utils import utils
+from modules.utils import utils
 #give a enum for txt and img
 class ApiType(Enum):
     txt2img = "txt2img"
     img2img = "img2img"
 
-class apiTypeModel(BaseModel):
+class TemplateBaseModel(BaseModel):
     name: str
-    value: str
+    api_model: Any # txt2img or img2img
+    options: str
     type: ApiType
 
 
+
 class Txt2ImgModel(BaseModel):
+    enable_hr: bool = False
+    denoising_strength: int = 0
+    firstphase_width: int = 0
+    firstphase_height: int = 0
+    hr_scale: int = 2
+    hr_second_pass_steps: int = 0
+    hr_resize_x: int = 0
+    hr_resize_y: int = 0
+    prompt: str = "A Girl, laying sofa"
+    styles: List[str] = ["string"]
+    override_settings: Dict[str, Union[str, int]] = {"sd_model_checkpoint": "wlop-any.ckpt [7331f3bc87]"}
+    seed: int = -1
+    subseed: int = -1
+    subseed_strength: int = 0
+    seed_resize_from_h: int = -1
+    seed_resize_from_w: int = -1
+    batch_size: int = 1
+    n_iter: int = 1
+    steps: int = 50
+    cfg_scale: int = 7
+    width: int = 512
+    height: int = 512
+    restore_faces: bool = False
+    tiling: bool = False
+    eta: int = 0
+    s_churn: int = 0
+    s_tmax: int = 0
+    s_tmin: int = 0
+    s_noise: int = 1
+    override_settings_restore_afterwards: bool = True
+    script_args: List[str] = []
+    sampler_index: str = "Euler"
+
+class Img2ImgModel(BaseModel):
     enable_hr: bool = False
     denoising_strength: int = 0
     firstphase_width: int = 0
@@ -136,9 +172,9 @@ class Img2Img(ControlNet_Api):
         url_img2img = "http://localhost:7860/sdapi/v1/img2img"
         return super().setup(url_img2img, image, mask, setup_args, cn_params)
     
-def setType():
-    # global api_type
-    api_type = ["txt2img", "img2img"]
-        
+    
 
-setType()
+demo = None
+txt_img_data: Txt2ImgModel = None
+img_img_data: Img2ImgModel = None
+base_data: TemplateBaseModel = None

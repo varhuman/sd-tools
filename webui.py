@@ -1,33 +1,26 @@
 import gradio as gr
 from gradio import components
-from api_models import Txt2ImgModel, ApiType, apiTypeModel
+from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel
+import modules.api_models as api_models
 import json
 from ui_components import FormRow, FormGroup, ToolButton, FormHTML
-# # Load parameters from JSON file
-model = Txt2ImgModel()
-demo = None
-interfaces = []
+import modules.template_utils as template_utils
 
-def update_parameters(model: Txt2ImgModel):
-    # Save the model to a JSON file
-    model.save('parameters.json')
-
-    return "Parameters saved to parameters.json"
-
-def update_parameter_display(value):
-    for _, label, id in interfaces:
-        container = demo.get_component('tab_' + id)
-        print(container)
-        if value == label:
-            container.show()
-        else:
-            container.hide()
+#获得model的参数并赋值给txt2ImgData or img2ImgData
+def get_model_data(model_path):
+    data:TemplateBaseModel = template_utils.get_template_model(model_path)
+    api_models.base_data = data
+    if data.type == ApiType.img2img:
+        api_models.img_img_data = data.api_model
+    elif data.type == ApiType.txt2img:
+        api_models.txt_img_data = data.api_model
+        
 
 def create_ui():
-    api_type = ["txt2img", "img2img"]
+    base_data, txt_img_data, img_img_data = api_models.base_data, api_models.txt_img_data, api_models.img_img_data
     with gr.Blocks() as txt2img_parameter:
         with gr.Row():
-            with gr.Column(variant='compact', elem_id="txt2img paramater"):
+            with gr.Column(variant='compact', elem_id="txt2img"):
                 with FormRow(elem_id=f"Enable HR"):
                     # sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value=choices[0].name, type="index")
                     # steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id=f"{tabname}_steps", label="Sampling steps", value=20)
@@ -35,7 +28,7 @@ def create_ui():
 
     with gr.Blocks() as img2img_parameter:
         with gr.Row():
-            with gr.Column(variant='compact', elem_id="txt2img paramater"):
+            with gr.Column(variant='compact', elem_id="img2img"):
                 with FormRow(elem_id=f"Enable HR"):
                     # sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value=choices[0].name, type="index")
                     # steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id=f"{tabname}_steps", label="Sampling steps", value=20)
@@ -47,19 +40,21 @@ def create_ui():
     ]
 
     with gr.Blocks(analytics_enabled=False, title="Stable Diffusion") as demo:
-        parameter_type = gr.Dropdown(label='type', elem_id="parameter_type", on_change=update_parameter_display, choices=api_type, value=api_type[0])
+        # parameter_type = gr.Dropdown(label='type', elem_id="parameter_type", on_change=update_parameter_display, choices=api_type, value=api_type[0])
+        #一个可以输入ip地址得文本框，并加入一个点击按钮
+        ip = gr.Textbox(label='ip', value= "127.0.0.1:7860" , elem_id = 'ipText')
         test = gr.Blocks()
         with gr.Tabs(elem_id="tabs") as tabs:
             for interface, label, id in interfaces:
                 with gr.TabItem(label, id=id, elem_id='tab_' + id):
                     interface.render()
         # parameter_type.change(update_parameter_display, parameter_type, test)
-        update_parameter_display(parameter_type.value)
+        # update_parameter_display(parameter_type)
     return demo
 
 def webui():
-    demo = create_ui()
-    demo.launch(
+    api_models.demo = create_ui()
+    api_models.demo.launch(
         share=False,
     )
 

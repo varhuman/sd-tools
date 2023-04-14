@@ -1,18 +1,10 @@
-api_type = [
-    {
-        name: "文字转图片",
-        "value": "txt2img",
-    },
-    {
-        "name": "Image to Image",
-        "value": "img2img",
-    },
-]
+class SS:
+    demo = {'v' : 2}
 
-test = {}
-#add test.name = "test"
-test["name"] = "test"
-
-api_type.append(test)
-
-print(api_type[2].name)
+    def check(self):
+        self.demo = {}
+        self.demo['a'] = 1
+        
+ss = SS()
+ss.check()
+print(ss.demo)
