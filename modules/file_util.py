@@ -51,8 +51,10 @@ def write_json_file(path:str, content):
     if not path.endswith(".json"):
         logger.error(f"write_json_file: the file {path} is not a json file")
         return False
+    
     with open(path, 'w') as f:
         f.write(content)
+
 
 def read_json_file(path:str):
     #先检查是否是json文件

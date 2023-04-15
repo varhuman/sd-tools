@@ -45,10 +45,11 @@ def get_txt2img_model(txt2img_prompt, txt2img_negative_prompt, steps, sampler_in
 #     api_model: Any = None # txt2img or img2img
 #     options: str = "default"
 #     type: ApiType = ApiType.txt2img
-def save_parameter(template_path, name, options, type:ApiType):
-    template_path = template_path.value if template_path else None
-    name = name.value if name else None
-    options = options.value if options else None
+def save_parameter(template_path, name, options, type, *args):
+    # template_path = template_path.value if template_path else None
+    # name = name.value if name else None
+    # options = options.value if options else None
+    # type = type.value if type else None
     if not template_path:
         template_path = template_utils.get_new_template_folder_name()
     #name none or empty
@@ -56,16 +57,15 @@ def save_parameter(template_path, name, options, type:ApiType):
         name = template_utils.get_new_template_name(template_path)
 
     choose_folder = template_path
-    def f(*args):
-        base_data.template_name = name
-        base_data.options = options
-        base_data.type = type
-        if type == ApiType.img2img:
-            base_data.api_model = Img2ImgModel(*args)
-        elif base_data.type == ApiType.txt2img:
-            base_data.api_model = get_txt2img_model(*args)
-        template_utils.save_template_model(choose_folder, base_data)
-    return f
+    base_data.template_name = name
+    base_data.options = options
+    base_data.type = type
+    if type == ApiType.img2img.value:
+        base_data.api_model = Img2ImgModel(*args)
+    elif base_data.type == ApiType.txt2img.value:
+        base_data.api_model = get_txt2img_model(*args)
+    template_utils.save_template_model(choose_folder, base_data)
+    return f"成功存储在{choose_folder}文件夹下的{base_data.template_name}"
     
 
 

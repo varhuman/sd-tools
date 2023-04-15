@@ -116,22 +116,25 @@ def create_ui():
             with FormRow():
                 ip_text = gr.Textbox(label='ip', value= data_manager.ip , elem_id = 'connect_ip')
                 connect_ip = gr.Button('connect', elem_id = 'connect_ip')
-                all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id=f"all_templates_folders", choices=["None"] + list(data_manager.templates_folders), value=data_manager.choose_folder)
+                all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=["None"] + list(data_manager.templates_folders), value=data_manager.choose_folder)
                 create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": ["None"] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
-                folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id=f"folder_templates", choices=["None"] + list(data_manager.templates), value=data_manager.choose_template)
+                folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=["None"] + list(data_manager.templates), value=data_manager.choose_template)
                 create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": ["None"] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
 
         with FormRow():
             template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
             template_folder = gr.Textbox(label="正在编辑的模板所处文件夹", elem_id="template_folder", value=data_manager.choose_folder)
+            template_option = gr.Textbox(label="特殊设置", elem_id="template_option", value=base_data.options)
+            template_type = gr.Dropdown(label='类型', elem_id="template_type", choices=["txt2img", "img2img"], value="txt2img")
+
 
         with FormRow():
             save = gr.Button('保存模板', elem_id = 'save_template')
             load = gr.Button('加载模板', elem_id = 'load_template')
             test = gr.Label("test",elem_id="test")
         save.click(
-            fn=data_manager.save_parameter(template_folder, template_name, None, ApiType.txt2img),
-            inputs=txt2img_args,
+            fn=data_manager.save_parameter,
+            inputs= [template_folder, template_name, template_option, template_type] + txt2img_args,
             outputs=[
                 test
             ]

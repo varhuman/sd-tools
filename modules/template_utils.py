@@ -49,7 +49,7 @@ def get_template_model(json_file):
 #将apiTypeModel转换成json并存储到template得指定文件夹下
 def save_template_model(folder, apiTypeModel:TemplateBaseModel):
     json_file = os.path.join(work_dir, folder, apiTypeModel.template_name + ".json")
-    content = json.dumps(apiTypeModel, default= to_serializable)
+    content = json.dumps(apiTypeModel, default= to_serializable, indent=4)
     file_util.write_json_file(json_file, content)
     
 def check_templates_folder_is_exist(folder):
