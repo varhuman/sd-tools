@@ -9,32 +9,19 @@ class ApiType(Enum):
     img2img = "img2img"
 
 class TemplateBaseModel(BaseModel):
-    name: str
-    api_model: Any # txt2img or img2img
-    options: str
-    type: ApiType
-
+    name: str = ""
+    api_model: Any = None # txt2img or img2img
+    options: str = "default"
+    type: ApiType = ApiType.txt2img
 
 
 class Txt2ImgModel(BaseModel):
-    enable_hr: bool = False
-    denoising_strength: int = 0
-    firstphase_width: int = 0
-    firstphase_height: int = 0
-    hr_scale: int = 2
-    hr_second_pass_steps: int = 0
-    hr_resize_x: int = 0
-    hr_resize_y: int = 0
     prompt: str = "A Girl, laying sofa"
-    styles: List[str] = ["string"]
+    negative_prompt: str = ""
     override_settings: Dict[str, Union[str, int]] = {"sd_model_checkpoint": "wlop-any.ckpt [7331f3bc87]"}
     seed: int = -1
-    subseed: int = -1
-    subseed_strength: int = 0
-    seed_resize_from_h: int = -1
-    seed_resize_from_w: int = -1
-    batch_size: int = 1
-    n_iter: int = 1
+    batch_size: int = 1 #每次张数
+    n_iter: int = 1 # 生成批次
     steps: int = 50
     cfg_scale: int = 7
     width: int = 512
@@ -42,11 +29,6 @@ class Txt2ImgModel(BaseModel):
     restore_faces: bool = False
     tiling: bool = False
     eta: int = 0
-    s_churn: int = 0
-    s_tmax: int = 0
-    s_tmin: int = 0
-    s_noise: int = 1
-    override_settings_restore_afterwards: bool = True
     script_args: List[str] = []
     sampler_index: str = "Euler"
 
@@ -172,9 +154,3 @@ class Img2Img(ControlNet_Api):
         url_img2img = "http://localhost:7860/sdapi/v1/img2img"
         return super().setup(url_img2img, image, mask, setup_args, cn_params)
     
-    
-
-demo = None
-txt_img_data: Txt2ImgModel = None
-img_img_data: Img2ImgModel = None
-base_data: TemplateBaseModel = None

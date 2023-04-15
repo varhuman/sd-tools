@@ -1,10 +1,7 @@
-class SS:
-    demo = {'v' : 2}
+sss = "123"
 
-    def check(self):
-        self.demo = {}
-        self.demo['a'] = 1
-        
-ss = SS()
-ss.check()
-print(ss.demo)
+def printw():
+    print(sss)
+
+
+printw()
