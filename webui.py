@@ -28,7 +28,7 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
 
 #获得model的参数并赋值给txt2ImgData or img2ImgData
 def get_model_data(model_path):
-    data:TemplateBaseModel = template_utils.get_template_model(model_path)
+    data:TemplateBaseModel = template_utils.get_model_from_template(model_path)
     api_models.base_data = data
     if data.type == ApiType.img2img:
         api_models.img_img_data = data.api_model
@@ -84,6 +84,12 @@ def create_txt2img_ui():
         
     return txt2img_bolcks, txt2img_args
 
+def init_data():
+    data_manager.refresh_ip()
+    data_manager.refresh_templates_folders()
+    data_manager.refresh_templates()
+
+
 def create_ui():
     base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
     css = ""
@@ -120,6 +126,7 @@ def create_ui():
                 create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": ["None"] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
                 folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=["None"] + list(data_manager.templates), value=data_manager.choose_template)
                 create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": ["None"] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
+                load = gr.Button('加载模板', elem_id = 'load_template')
 
         with FormRow():
             template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
@@ -130,11 +137,17 @@ def create_ui():
 
         with FormRow():
             save = gr.Button('保存模板', elem_id = 'save_template')
-            load = gr.Button('加载模板', elem_id = 'load_template')
             test = gr.Label("test",elem_id="test")
         save.click(
             fn=data_manager.save_parameter,
             inputs= [template_folder, template_name, template_option, template_type] + txt2img_args,
+            outputs=[
+                test
+            ]
+        )
+        load.click(
+            fn=data_manager.load_parameter,
+            inputs= [all_templates_folders, folder_templates],
             outputs=[
                 test
             ]
@@ -155,6 +168,7 @@ def create_ui():
     return demo
 
 def webui():
+    init_data()
     api_models.demo = create_ui()
     api_models.demo.launch(
         share=False,

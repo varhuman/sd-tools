@@ -1,4 +1,7 @@
-sss = ""
+sss = "2"
 
-if sss is None:
-    print("None")
+def ww():
+    global sss
+    sss = "12"
+
+print(sss)

@@ -2,6 +2,7 @@ import os
 import modules.file_util as file_util
 import json
 from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel, to_serializable
+import modules.log_util as logger
 
 work_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 work_dir = os.path.join(work_dir, "templates")
@@ -36,8 +37,16 @@ def get_templates_from_folder(folder):
     json_files = file_util.get_json_files(os.path.join(work_dir, folder))
     return json_files
 
+def get_model_from_folder(folder, template_name):
+    all_templates = get_templates_from_folder(folder)
+    for template in all_templates:
+        if template_name in template:
+            return get_model_from_template(template)
+    logger.error(f"get_model_from_folder: the template {template_name} is not exist in folder {folder}")
+    return None
+
 #将json先解析成apiTypeModel，根据apiTypeModel中得type再决定解析成哪个model
-def get_template_model(json_file):
+def get_model_from_template(json_file):
     content = file_util.read_json_file(json_file)
     apiTypeModel:TemplateBaseModel = json.loads(content)
     if apiTypeModel.type == ApiType.img2img:

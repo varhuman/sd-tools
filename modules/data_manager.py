@@ -22,13 +22,15 @@ samplers_k_diffusion = [
 
 checkpoints_models = []
 
-def refresh_ip(ip):
+def refresh_ip():
     return ""
 
 def refresh_templates_folders():
+    global templates_folders
     templates_folders = template_utils.get_all_templates_folders()
 
 def refresh_templates():
+    global templates
     if choose_folder is None:
         templates = []
     else:
@@ -41,15 +43,26 @@ def get_txt2img_model(txt2img_prompt, txt2img_negative_prompt, steps, sampler_in
                         seed=seed, height=height, width=width, checkpoint_model=checkpoint_model, eta=eta)
 
 
-# name: str = "default"
-#     api_model: Any = None # txt2img or img2img
-#     options: str = "default"
-#     type: ApiType = ApiType.txt2img
+def load_parameter(template_path, name):
+    if not template_path:
+        template_path = template_utils.get_new_template_folder_name()
+    #name none or empty
+    if not name:
+        name = template_utils.get_new_template_name(template_path)
+
+    choose_folder = template_path
+    base_data.template_name = name
+    temp_data = template_utils.get_model_from_folder(choose_folder, name)
+    base_data.options = temp_data.options
+    base_data.type = temp_data.type
+    if base_data.type == ApiType.img2img.value:
+        base_data.api_model = temp_data.api_model
+    elif base_data.type == ApiType.txt2img.value:
+        base_data.api_model = temp_data.api_model
+    return f"成功加载{choose_folder}文件夹下的{base_data.template_name}模板"
+
 def save_parameter(template_path, name, options, type, *args):
-    # template_path = template_path.value if template_path else None
-    # name = name.value if name else None
-    # options = options.value if options else None
-    # type = type.value if type else None
+    global choose_folder
     if not template_path:
         template_path = template_utils.get_new_template_folder_name()
     #name none or empty
