@@ -2,9 +2,17 @@
 import os
 from modules.log_util import logger
 
+#检查文件夹是否存在，不存在则创建
+def check_folder(path:str):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
 #获取指定路径下所有文件夹
 def get_dirs(path):
     dirs = []
+    if not os.path.exists(path):
+        logger.error(f"get_dirs: the path {path} is not exist")
+        return dirs
     for dir in os.listdir(path):
         if os.path.isdir(os.path.join(path, dir)):
             dirs.append(dir)
@@ -13,6 +21,9 @@ def get_dirs(path):
 #获得指定文件下所有后缀为json得文件，支持深度搜索
 def get_json_files(path, deep=True):
     files = []
+    if not os.path.exists(path):
+        logger.error(f"get_json_files: the path {path} is not exist")
+        return files
     if deep:
         for dir in get_dirs(path):
             files.extend(get_json_files(os.path.join(path, dir), deep))
@@ -34,6 +45,8 @@ def check_folder_is_exist(path:str, folder):
 
 #把json内容写入指定得json文件中
 def write_json_file(path:str, content):
+    #先检查是否存在该文件夹
+    check_folder(os.path.dirname(path))
     #先检查是否是json文件
     if not path.endswith(".json"):
         logger.error(f"write_json_file: the file {path} is not a json file")

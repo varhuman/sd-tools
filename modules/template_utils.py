@@ -1,7 +1,7 @@
 import os
 import modules.file_util as file_util
 import json
-from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel
+from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel, to_serializable
 
 work_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 work_dir = os.path.join(work_dir, "templates")
@@ -10,6 +10,26 @@ work_dir = os.path.join(work_dir, "templates")
 def get_all_templates_folders():
     folders = file_util.get_dirs(work_dir)
     return folders
+
+def get_new_template_folder_name():
+    folders = get_all_templates_folders()
+    #find template{i} is exist
+    i = 1
+    while True:
+        folder = "template_folder" + str(i)
+        if folder not in folders:
+            return folder
+        i += 1
+
+def get_new_template_name(folder):
+    templates = get_templates_from_folder(folder)
+    #find template{i} is exist
+    i = 1
+    while True:
+        template = "template" + str(i)
+        if template not in templates:
+            return template
+        i += 1
 
 #利用file_util中的方法，获取某个template文件夹下所有json文件
 def get_templates_from_folder(folder):
@@ -27,9 +47,9 @@ def get_template_model(json_file):
     return apiTypeModel
 
 #将apiTypeModel转换成json并存储到template得指定文件夹下
-def save_template_model(template, apiTypeModel:TemplateBaseModel):
-    json_file = os.path.join(work_dir, template, apiTypeModel.name + ".json")
-    content = json.dumps(apiTypeModel, default=lambda o: o.__dict__)
+def save_template_model(folder, apiTypeModel:TemplateBaseModel):
+    json_file = os.path.join(work_dir, folder, apiTypeModel.template_name + ".json")
+    content = json.dumps(apiTypeModel, default= to_serializable)
     file_util.write_json_file(json_file, content)
     
 def check_templates_folder_is_exist(folder):

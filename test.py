@@ -1,7 +1,4 @@
-sss = "123"
+sss = ""
 
-def printw():
-    print(sss)
-
-
-printw()
+if sss is None:
+    print("None")

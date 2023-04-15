@@ -8,8 +8,16 @@ class ApiType(Enum):
     txt2img = "txt2img"
     img2img = "img2img"
 
+def to_serializable(obj: Any):
+    if isinstance(obj, BaseModel):
+        return obj.dict()
+    elif isinstance(obj, Enum):
+        return obj.value
+    else:
+        return obj.__dict__
+
 class TemplateBaseModel(BaseModel):
-    name: str = ""
+    template_name: str = ""
     api_model: Any = None # txt2img or img2img
     options: str = "default"
     type: ApiType = ApiType.txt2img
@@ -30,7 +38,20 @@ class Txt2ImgModel(BaseModel):
     tiling: bool = False
     eta: int = 0
     script_args: List[str] = []
-    sampler_index: str = "Euler"
+    sampler_index: str = "Euler a"
+
+
+    def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index):
+        super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index)
+        self.set_override_settings(checkpoint_model)
+        return self
+
+    def set_override_settings(self, model):
+        self.override_settings={}
+        self.override_settings['sd_model_checkpoint'] = model
+
+    def get_checkpoint_model(self):
+        return self.override_settings['sd_model_checkpoint'] if 'sd_model_checkpoint' in self.override_settings else None
 
 class Img2ImgModel(BaseModel):
     enable_hr: bool = False

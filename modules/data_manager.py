@@ -20,6 +20,8 @@ samplers_k_diffusion = [
     'DPM++ SDE Karras',
 ]
 
+checkpoints_models = []
+
 def refresh_ip(ip):
     return ""
 
@@ -32,27 +34,44 @@ def refresh_templates():
     else:
         templates = template_utils.get_templates_from_folder(choose_folder)
 
-def get_txt2img_model(txt2img_prompt, txt2img_negative_prompt, steps, sampler_index, restore_faces, tiling, batch_count, batch_size, cfg_scale, seed, height, width, override_settings, eta):
-    return Txt2ImgModel(prompt=txt2img_prompt, negative_prompt=txt2img_negative_prompt, steps=steps, sampler_index=sampler_index, restore_faces=restore_faces, tiling=tiling, n_iter=batch_count, batch_size=batch_size, cfg_scale=cfg_scale, seed=seed, height=height, width=width, override_settings=override_settings, eta=eta)
+def get_txt2img_model(txt2img_prompt, txt2img_negative_prompt, steps, sampler_index, restore_faces, tiling, batch_count, batch_size, cfg_scale, seed, height, width, eta, checkpoint_model):
+    return Txt2ImgModel().create(prompt=txt2img_prompt, negative_prompt=txt2img_negative_prompt, 
+                        steps=steps, sampler_index=sampler_index, restore_faces=restore_faces, 
+                        tiling=tiling, n_iter=batch_count, batch_size=batch_size, cfg_scale=cfg_scale, 
+                        seed=seed, height=height, width=width, checkpoint_model=checkpoint_model, eta=eta)
 
 
 # name: str = "default"
 #     api_model: Any = None # txt2img or img2img
 #     options: str = "default"
 #     type: ApiType = ApiType.txt2img
-def save_parameter(template_path:str, name:str, options:str, type:ApiType, **args):
-    base_data.name = name
-    base_data.options = options
-    base_data.type = type
-    if type == ApiType.img2img:
-        base_data.api_model = Img2ImgModel(**args)
-    elif base_data.type == ApiType.txt2img:
-        base_data.api_model = get_txt2img_model(**args)
-    template_utils.save_template_model(template_path, base_data)
+def save_parameter(template_path, name, options, type:ApiType):
+    template_path = template_path.value if template_path else None
+    name = name.value if name else None
+    options = options.value if options else None
+    if not template_path:
+        template_path = template_utils.get_new_template_folder_name()
+    #name none or empty
+    if not name:
+        name = template_utils.get_new_template_name(template_path)
+
+    choose_folder = template_path
+    def f(*args):
+        base_data.template_name = name
+        base_data.options = options
+        base_data.type = type
+        if type == ApiType.img2img:
+            base_data.api_model = Img2ImgModel(*args)
+        elif base_data.type == ApiType.txt2img:
+            base_data.api_model = get_txt2img_model(*args)
+        template_utils.save_template_model(choose_folder, base_data)
+    return f
+    
+
 
 def list_files_with_name(filename):
     res = []
-    
+
     dirpath = os.path.join(os.getcwd(), "css")
     path = os.path.join(dirpath, filename)
     if os.path.isfile(path):
