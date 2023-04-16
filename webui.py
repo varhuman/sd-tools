@@ -1,12 +1,28 @@
 import gradio as gr
-from modules.api_models import ApiType, TemplateBaseModel
+from modules.api_models import ApiType, TemplateBaseModel, SubmitFolderModel,SubmitItemModel
 import modules.api_models as api_models
 import modules.data_manager as data_manager
 from ui_components import FormRow, ToolButton, FormGroup
 import modules.template_utils as template_utils
 import os
+import modules.submit_util as submit_util
+import time
 
 refresh_symbol = '\U0001f504'  # 🔄
+
+def restart_ui():
+    #this is not working
+    time.sleep(0.5)
+    data_manager.demo.close()
+    
+    time.sleep(0.5)
+    data_manager.demo = create_ui()
+    data_manager.demo.launch(
+        share=False,
+    )
+    
+    time.sleep(0.5)
+
 def create_refresh_button(refresh_component, refresh_method, refreshed_args, elem_id):
     def refresh():
         refresh_method()
@@ -25,18 +41,25 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
     )
     return refresh_button
 
+def change_folder(choose_folder):
+    data_manager.choose_folder = choose_folder
+    data_manager.refresh_templates()
+    return gr.Dropdown.update(value=data_manager.templates[0] if data_manager.templates else "",choices=data_manager.templates)
 
 #获得model的参数并赋值给txt2ImgData or img2ImgData
 def get_model_data(model_path):
     data:TemplateBaseModel = template_utils.get_model_from_template(model_path)
-    api_models.base_data = data
-    if data.type == ApiType.img2img:
-        api_models.img_img_data = data.api_model
-    elif data.type == ApiType.txt2img:
-        api_models.txt_img_data = data.api_model
+    data_manager.base_data = data
+    if data.template_type == ApiType.img2img:
+        data_manager.img_img_data = data.api_model
+    elif data.template_type == ApiType.txt2img:
+        data_manager.txt_img_data = data.api_model
 
-def update_tabs(input):
-    return f"update_tabs: {input}"
+def set_txt2img_type():
+    return ApiType.txt2img.value
+
+def set_img2img_type():
+    return ApiType.img2img.value
 
 def create_txt2img_ui():
     base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
@@ -54,7 +77,7 @@ def create_txt2img_ui():
                     restore_faces = gr.Checkbox(label="restore_faces", elem_id="txt2img_restore_faces", value=t2i_data.restore_faces)
                     tiling = gr.Checkbox(label="tiling", elem_id="txt2img_tiling", value=t2i_data.tiling)
                     seed = gr.Number(label='Seed', value= -1 , elem_id = 'txt2img_seed')
-                    sampler_index = gr.Dropdown(label='Sampling method', elem_id="txt2img_sampling", choices=samplers, value=t2i_data.sampler_index, type="index")
+                    sampler_index = gr.Dropdown(label='Sampling method', elem_id="txt2img_sampling", choices=samplers, value=t2i_data.sampler_index)
                     
             with gr.Column(variant='compact'):
                 steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id="txt2img_steps", label="Sampling steps", value=t2i_data.steps)
@@ -84,63 +107,216 @@ def create_txt2img_ui():
         
     return txt2img_bolcks, txt2img_args
 
+def create_img2img_ui():
+    base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
+
+    with gr.Blocks() as img2img_bolcks:
+        with gr.Row():
+            with gr.Column(variant='compact'):
+                with FormRow(elem_id="img2img images"):
+                    img_inpaint = gr.Image(label="Image for img2img", show_label=False, source="upload", interactive=True, type="pil", elem_id="img_inpaint_base", value=i2i_data.init_images)
+                    mask_inpaint = gr.Image(label="Mask", source="upload", interactive=True, type="pil", elem_id="img_inpaint_mask", value=i2i_data.mask)
+                with FormRow(elem_id="img2img image params"):
+                    with FormGroup(elem_id="inpaint_controls") as inpaint_controls:
+                            with FormRow():
+                                mask_blur = gr.Slider(label='Mask blur', minimum=0, maximum=64, step=1, value=i2i_data.mask_blur, elem_id="img2img_mask_blur")
+                            with FormRow():
+                                inpainting_mask_invert = gr.Radio(label='重绘蒙版', choices=['Inpaint masked', 'Inpaint not masked'], value=i2i_data.inpainting_mask_invert, type="index", elem_id="img2img_mask_mode")
+
+                            with FormRow():
+                                inpainting_fill = gr.Radio(label='蒙版遮住的内容', choices=['fill', 'original', 'latent noise', 'latent nothing'], value=i2i_data.inpainting_fill, type="index", elem_id="img2img_inpainting_fill")
+
+                            with FormRow():
+                                with gr.Column():
+                                    inpaint_full_res = gr.Radio(label="Inpaint area", choices=["Whole picture", "Only masked"], type="index", value=i2i_data.inpaint_full_res, elem_id="img2img_inpaint_full_res")
+
+                                with gr.Column(scale=4):
+                                    inpaint_full_res_padding = gr.Slider(label='Only masked padding, pixels', minimum=0, maximum=256, step=4, value=i2i_data.inpaint_full_res_padding, elem_id="img2img_inpaint_full_res_padding")
+
+                with FormRow(elem_id="img2img row1"):
+                    checkpoint_model = gr.Dropdown(label='Model', elem_id="img2img_checkpoint_model", choices=data_manager.checkpoints_models, value=t2i_data.get_checkpoint_model())
+                with FormRow(elem_id="img2img row1"):
+                    img2img_prompt = gr.Textbox(label="prompt", elem_id="img2img_prompt", value=t2i_data.prompt)
+                with FormRow(elem_id="img2img row2"):
+                    img2img_negative_prompt = gr.Textbox(label="negative_prompt", elem_id="img2img_negative_prompt", value=t2i_data.negative_prompt)
+                with FormRow(elem_id="img2img row3"):
+                    restore_faces = gr.Checkbox(label="restore_faces", elem_id="img2img_restore_faces", value=t2i_data.restore_faces)
+                    tiling = gr.Checkbox(label="tiling", elem_id="img2img_tiling", value=t2i_data.tiling)
+                    seed = gr.Number(label='Seed', value= -1 , elem_id = 'img2img_seed')
+                    sampler_index = gr.Dropdown(label='Sampling method', elem_id="img2img_sampling", choices=samplers, value=t2i_data.sampler_index)
+                    
+            with gr.Column(variant='compact'):
+                steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id="img2img_steps", label="Sampling steps", value=t2i_data.steps)
+                cfg_scale = gr.Slider(minimum=1, maximum=30, step=0.5, elem_id="img2img_cfg_scale", label="cfg_scale", value=t2i_data.cfg_scale)
+                width = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_width", label="width", value=t2i_data.width)
+                height = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_height", label="height", value=t2i_data.height)
+                batch_size = gr.Slider(minimum=1, maximum=1024, step=1, elem_id="img2img_batch_size", label="batch_size", value=t2i_data.batch_size)
+                batch_count = gr.Slider(minimum=1, maximum=100, step=1, elem_id="img2img_n_iter", label="n_iter", value=t2i_data.n_iter)
+                eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="img2img_eta", label="eta", value=t2i_data.eta)
+        img2img_args = [
+            img2img_prompt,
+            img2img_negative_prompt,
+            restore_faces,
+            tiling,
+            seed,
+            sampler_index,
+            steps,
+            cfg_scale,
+            width,
+            height,
+            batch_size,
+            batch_count,
+            eta,
+            inpaint_full_res,
+            inpaint_full_res_padding,
+            checkpoint_model,
+            img_inpaint,
+            mask_inpaint,
+            mask_blur,
+            inpainting_fill,
+            inpainting_mask_invert,
+                ]
+        
+    return img2img_bolcks, img2img_args
+        
+
+
+def create_submit_item(item: SubmitItemModel):
+    with gr.Blocks() as submit_item:
+        with gr.Row().style(equal_height=True):
+            is_submit = gr.Checkbox(label="是否执行", elem_id="is_submit" + item.submit_template, value=item.is_submit)
+            submit_template = gr.Label(item.submit_template)
+            submit_times = gr.Slider(label='执行次数', value=item.submit_times, step=1, minimum=1, maximum=30, elem_id = 'submit_times' + item.submit_template)
+    return is_submit, submit_template, submit_times, submit_item
+
+def submit_times_change(item: SubmitItemModel):
+    def fn(times, item=item):
+        item.submit_times = times
+    return fn
+def submit_enabled_change(item: SubmitFolderModel):
+    def fn(enabled, item=item):
+        submit_list = data_manager.submit_list
+        for submit_item in submit_list:
+            if submit_item.submit_folder == item.submit_folder:
+                submit_item.is_submit = enabled
+        
+    return fn
+
+def create_submit():
+    submit_list = data_manager.submit_list
+
+    all_ui = []
+    with gr.Blocks() as submit_tab:
+        with FormRow():
+            create_refresh_button(submit_tab, data_manager.refresh_submit_list, lambda: {"update": ()}, "refresh_submit_list")
+            message = gr.Label("提示信息")
+        submit_btn = gr.Button("提交", elem_id="submit_btn")
+        # refresh_submit = gr.Button("刷新", elem_id="submit_btn")
+        # refresh_submit.click(
+        #     fn=restart_ui,
+        #     inputs=[],
+        #     outputs=[],
+        # )
+
+        submit_btn.click(
+            fn=submit_util.submit_all,
+            inputs=[message]
+        )
+        for submit_folder in submit_list:
+            submit_item_is_submit = submit_folder.is_submit
+            folder_name = submit_folder.submit_folder
+            times = submit_folder.submit_times
+            submit_items = submit_folder.submit_items
+            with gr.Group():
+                with gr.Accordion(folder_name, open=False):
+                    with gr.Row():
+                        enabled = gr.Checkbox(label="是否执行（整体）", value=submit_item_is_submit)
+                        submit_times = gr.Slider(label='执行次数（整体)', value=times, step=1, minimum=1, maximum=30, elem_id = 'submit_times' + folder_name)
+                        all_ui.append(enabled)
+                        all_ui.append(submit_times)
+                        enabled.change(
+                            fn=submit_enabled_change(item=submit_folder),
+                            inputs=[enabled],
+                        )
+                        submit_times.change(
+                            fn=submit_times_change(item=submit_folder),
+                            inputs=[submit_times],
+                        )
+                    with gr.Accordion("子项", open=False):
+                        for submit_item in submit_items:
+                            submit_item_is_submit, submit_item_template, submit_item_times, submit_blocks = create_submit_item(submit_item)
+                            all_ui.append(submit_item_is_submit)
+                            all_ui.append(submit_item_times)
+
+    return submit_tab
+
 def init_data():
     data_manager.refresh_ip()
     data_manager.refresh_templates_folders()
     data_manager.refresh_templates()
+    data_manager.refresh_submit_list()
 
 
 def create_ui():
-    base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
+    base_data, t2i_data, i2i_data, samplers, submit_list = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion, data_manager.submit_list
     css = ""
 
-    for cssfile in data_manager.list_files_with_name("style.css"):
-        if not os.path.isfile(cssfile):
-            continue
+    # for cssfile in data_manager.list_files_with_name("style.css"):
+    #     if not os.path.isfile(cssfile):
+    #         continue
 
-        with open(cssfile, "r", encoding="utf8") as file:
-            css += file.read() + "\n"
+    #     with open(cssfile, "r", encoding="utf8") as file:
+    #         css += file.read() + "\n"
 
-    with gr.Blocks() as img2img_interface:
-        with gr.Row():
-            with gr.Column(variant='compact', elem_id="img2img"):
-                with FormRow(elem_id=f"Enable HR"):
-                    # sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value=choices[0].name, type="index")
-                    # steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id=f"{tabname}_steps", label="Sampling steps", value=20)
-                    seed = gr.Textbox(label='Seed2', value= -1 , elem_id = 'img2img_seed')
 
     txt2img_interface, txt2img_args = create_txt2img_ui()
+    img2img_interface, img2img_args = create_img2img_ui()
+    submit_interface = create_submit()
     interfaces = [
         (txt2img_interface, "txt2img", "txt2img", txt2img_args),
-        (img2img_interface, "img2img", "img2img", None),
+        (img2img_interface, "img2img", "img2img", img2img_args),
+        (submit_interface, "submit", "submit", txt2img_args),
     ]
 
     with gr.Blocks(css=css, analytics_enabled=False, title="Stable Diffusion") as demo:
-        # parameter_type = gr.Dropdown(label='type', elem_id="parameter_type", on_change=update_parameter_display, choices=api_type, value=api_type[0])
-        #一个可以输入ip地址得文本框，并加入一个点击按钮
         with FormGroup():
             with FormRow():
-                ip_text = gr.Textbox(label='ip', value= data_manager.ip , elem_id = 'connect_ip')
-                connect_ip = gr.Button('connect', elem_id = 'connect_ip')
-                all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=["None"] + list(data_manager.templates_folders), value=data_manager.choose_folder)
-                create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": ["None"] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
-                folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=["None"] + list(data_manager.templates), value=data_manager.choose_template)
-                create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": ["None"] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
-                load = gr.Button('加载模板', elem_id = 'load_template')
+                with gr.Row().style(equal_height=False):
+                    ip_text = gr.Textbox(label='ip', value= data_manager.ip , elem_id = 'connect_ip')
+                    connect_ip = gr.Button('connect', elem_id = 'connect_ip')
+                    all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
+                    create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
+                    folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
+                    create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
+                    load = gr.Button('加载模板', elem_id = 'load_template')
+
+                    all_templates_folders.change(
+                        fn=change_folder,
+                        inputs=[all_templates_folders],
+                        outputs=folder_templates
+                    )
 
         with FormRow():
             template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
             template_folder = gr.Textbox(label="正在编辑的模板所处文件夹", elem_id="template_folder", value=data_manager.choose_folder)
             template_option = gr.Textbox(label="特殊设置", elem_id="template_option", value=base_data.options)
-            template_type = gr.Dropdown(label='类型', elem_id="template_type", choices=["txt2img", "img2img"], value="txt2img")
+            template_type_label = gr.Label(base_data.template_type, elem_id="template_type")
 
 
         with FormRow():
             save = gr.Button('保存模板', elem_id = 'save_template')
+            save2 = gr.Button('保存模板2', elem_id = 'save_template')
             test = gr.Label("test",elem_id="test")
         save.click(
             fn=data_manager.save_parameter,
-            inputs= [template_folder, template_name, template_option, template_type] + txt2img_args,
+            inputs= [template_folder, template_name, template_option, template_type_label] + txt2img_args,
+            outputs=[
+                test
+            ]
+        )
+        save2.click(
+            fn=data_manager.save_parameter,
+            inputs= [template_folder, template_name, template_option, template_type_label] + img2img_args,
             outputs=[
                 test
             ]
@@ -152,82 +328,39 @@ def create_ui():
                 test
             ]
         )
+        tab_items = []
         with gr.Tabs(elem_id="tabs") as tabs:
             for interface, label, id, args in interfaces:
-                with gr.TabItem(label, id=id, elem_id='tab_' + id):
+                with gr.TabItem(label, id=id, elem_id='tab_' + id) as tab_item:
+                    data_manager.refresh_submit_list()
                     interface.render()
-
-        tabs.change(
-            fn=update_tabs,
-            inputs=txt2img_interface,
-            outputs=test,
-        )
-                
-        # parameter_type.change(update_parameter_display, parameter_type, test)
-        # update_parameter_display(parameter_type)
+                tab_items.append(tab_item)
+                if label == "txt2img":
+                    tab_item.select(
+                        fn=set_txt2img_type,
+                        inputs=[],
+                        outputs=template_type_label
+                    )
+                elif label == "img2img":
+                    tab_item.select(
+                        fn=set_img2img_type,
+                        inputs=[],
+                        outputs=template_type_label
+                    )
+                elif label == "submit":
+                    tab_item.select(
+                        fn=create_submit,
+                        inputs=[],
+                        outputs=[submit_interface]
+                    )
     return demo
 
 def webui():
     init_data()
-    api_models.demo = create_ui()
-    api_models.demo.launch(
+    data_manager.demo = create_ui()
+    data_manager.demo.launch(
         share=False,
     )
 
 if __name__ == "__main__":
     webui()
-
-
-# # model.load('parameters.json')
-
-# def update_parameters(model: Txt2ImgModel):
-#     # Save the model to a JSON file
-#     # model.save('parameters.json')
-
-#     return "Parameters saved to parameters.json"
-
-# iface = gr.Interface(
-#     update_parameters,
-#     [
-#         gr.inputs.Checkbox(label="Enable HR", default=model.enable_hr),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.denoising_strength, label="Denoising Strength"),
-#         gr.inputs.Slider(minimum=0, maximum=1000, default=model.firstphase_width, label="First Phase Width"),
-#         gr.inputs.Slider(minimum=0, maximum=1000, default=model.firstphase_height, label="First Phase Height"),
-#         gr.inputs.Slider(minimum=1, maximum=10, default=model.hr_scale, label="HR Scale"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.hr_second_pass_steps, label="HR Second Pass Steps"),
-#         gr.inputs.Slider(minimum=0, maximum=1000, default=model.hr_resize_x, label="HR Resize X"),
-#         gr.inputs.Slider(minimum=0, maximum=1000, default=model.hr_resize_y, label="HR Resize Y"),
-#         gr.inputs.Textbox(default=model.prompt, label="Prompt"),
-#         gr.inputs.Textbox(default=",".join(model.styles), label="Styles (comma-separated)"),
-#         gr.inputs.Textbox(default=model.override_settings["sd_model_checkpoint"], label="SD Model Checkpoint"),
-#         gr.inputs.Slider(minimum=-1, maximum=1000, default=model.seed, label="Seed"),
-#         gr.inputs.Slider(minimum=-1, maximum=1000, default=model.subseed, label="Subseed"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.subseed_strength, label="Subseed Strength"),
-#         gr.inputs.Slider(minimum=-1, maximum=1000, default=model.seed_resize_from_h, label="Seed Resize From H"),
-#         gr.inputs.Slider(minimum=-1, maximum=1000, default=model.seed_resize_from_w, label="Seed Resize From W"),
-#         gr.inputs.Slider(minimum=1, maximum=10, default=model.batch_size, label="Batch Size"),
-#         gr.inputs.Slider(minimum=1, maximum=100, default=model.n_iter, label="Number of Iterations"),
-#         gr.inputs.Slider(minimum=1, maximum=1000, default=model.steps, label="Steps"),
-#         gr.inputs.Slider(minimum=1, maximum=10, default=model.cfg_scale, label="CFG Scale"),
-#         gr.inputs.Slider(minimum=1, maximum=4096, default=model.width, label="Width"),
-#         gr.inputs.Slider(minimum=1, maximum=4096, default=model.height, label="Height"),
-#         gr.inputs.Checkbox(label="Restore Faces", default=model.restore_faces),
-#         gr.inputs.Checkbox(label="Tiling", default=model.tiling),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.eta, label="Eta"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.s_churn, label="S Churn"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.s_tmax, label="S Tmax"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.s_tmin, label="S Tmin"),
-#         gr.inputs.Slider(minimum=0, maximum=100, default=model.s_noise, label="S Noise"),
-#         gr.inputs.Checkbox(label="Override Settings Restore Afterwards", default=model.override_settings_restore_afterwards),
-#         gr.inputs.Textbox(default=",".join(model.script_args), label="Script Args (comma-separated)"),
-#         gr.inputs.Dropdown(choices=["Euler", "Other1", "Other2"], default=model.sampler_index, label="Sampler Index"),
-#     ],
-#     "text",
-#     examples=[
-#         # Add some example inputs if needed
-#     ]
-# )
-# iface.launch()
-
-# Load parameters from JSON file
-# model = parse_json('parameters.json')

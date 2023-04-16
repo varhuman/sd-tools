@@ -22,15 +22,22 @@ def get_dirs(path):
 def get_json_files(path, deep=True):
     files = []
     if not os.path.exists(path):
-        logger.error(f"get_json_files: the path {path} is not exist")
         return files
     if deep:
         for dir in get_dirs(path):
             files.extend(get_json_files(os.path.join(path, dir), deep))
     for file in os.listdir(path):
         if os.path.isfile(os.path.join(path, file)) and file.endswith(".json"):
-            files.append(os.path.join(path, file))
+            # files add file without json suffix
+            files.append(file[:-5])
     return files
+
+#指定目录下获取新的文件名字，格式为base_name_{i}extension
+def get_new_file_name(folder, base_name, extension, index=1):
+    name = base_name + "_" + str(index) + '.' + extension
+    if name in os.listdir(folder):
+        return get_new_file_name(folder, base_name, extension, index+1)
+    return name
 
 #获得指定文件夹下每个文件夹中所有得json文件，分别返回
 def get_json_files_by_dir(path):
