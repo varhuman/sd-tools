@@ -41,15 +41,21 @@ def get_model_from_folder(folder, template_name):
     all_templates = get_templates_from_folder(folder)
     for template in all_templates:
         if template_name in template:
-            return get_model_from_template(os.path.join(work_dir, folder, template_name + ".json"))
+            return get_model_from_template_path(os.path.join(work_dir, folder, template_name + ".json"))
     logger.error(f"get_model_from_folder: the template {template_name} is not exist in folder {folder}")
     return None
 
 #将json先解析成apiTypeModel，根据apiTypeModel中得type再决定解析成哪个model
-def get_model_from_template(json_file):
+def get_model_from_template_path(json_file):
     content = file_util.read_json_file(json_file)
     #json to TemplateBaseModel
     data = json.loads(content)
+    apiTypeModel = TemplateBaseModel(**data)
+    return apiTypeModel
+
+def get_model_from_template(json):
+    #json to TemplateBaseModel
+    data = json.loads(json)
     apiTypeModel = TemplateBaseModel(**data)
     return apiTypeModel
 

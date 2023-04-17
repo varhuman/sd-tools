@@ -1,11 +1,11 @@
 import gradio as gr
-from modules.api_models import ApiType, TemplateBaseModel, SubmitFolderModel,SubmitItemModel
+from modules.api_models import ApiType, TemplateBaseModel, SubmitFolderModel,SubmitItemModel, CheckpointModel
 import modules.api_models as api_models
 import modules.data_manager as data_manager
 from ui_components import FormRow, ToolButton, FormGroup
 import modules.template_utils as template_utils
 import os
-import modules.submit_util as submit_util
+import modules.api_util as api_util
 import time
 
 refresh_symbol = '\U0001f504'  # 🔄
@@ -48,7 +48,7 @@ def change_folder(choose_folder):
 
 #获得model的参数并赋值给txt2ImgData or img2ImgData
 def get_model_data(model_path):
-    data:TemplateBaseModel = template_utils.get_model_from_template(model_path)
+    data:TemplateBaseModel = template_utils.get_model_from_template_path(model_path)
     data_manager.base_data = data
     if data.template_type == ApiType.img2img:
         data_manager.img_img_data = data.api_model
@@ -68,7 +68,8 @@ def create_txt2img_ui():
         with gr.Row():
             with gr.Column(variant='compact'):
                 with FormRow(elem_id="txt2img row1"):
-                    checkpoint_model = gr.Dropdown(label='Model', elem_id="txt2img_checkpoint_model", choices=data_manager.checkpoints_models, value=t2i_data.get_checkpoint_model())
+                    checkpoint_model = gr.Dropdown(label='Model', elem_id="txt2img_checkpoint_model", choices=[x.model_name for x in data_manager.checkpoints_models], value=t2i_data.get_checkpoint_model())
+                    create_refresh_button(checkpoint_model, data_manager.refresh_checkpoints, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}, "txt2img_checkpoint_model")
                 with FormRow(elem_id="txt2img row1"):
                     txt2img_prompt = gr.Textbox(label="prompt", elem_id="txt2img_prompt", value=t2i_data.prompt)
                 with FormRow(elem_id="txt2img row2"):
@@ -202,26 +203,35 @@ def submit_enabled_change(item: SubmitFolderModel):
         
     return fn
 
+def refresh_submit_table():
+    data_manager.refresh_submit_list()
+
+    return gr.update()
+
 def create_submit():
     submit_list = data_manager.submit_list
 
     all_ui = []
     with gr.Blocks() as submit_tab:
         with FormRow():
-            create_refresh_button(submit_tab, data_manager.refresh_submit_list, lambda: {"update": ()}, "refresh_submit_list")
+            # check = gr.Button(value="Check for updates")
+            create_refresh_button(submit_tab, refresh_submit_table, lambda: {"update": ()}, "refresh_submit_list")
             message = gr.Label("提示信息")
         submit_btn = gr.Button("提交", elem_id="submit_btn")
-        # refresh_submit = gr.Button("刷新", elem_id="submit_btn")
-        # refresh_submit.click(
-        #     fn=restart_ui,
-        #     inputs=[],
-        #     outputs=[],
-        # )
 
         submit_btn.click(
-            fn=submit_util.submit_all,
+            fn=api_util.submit_all,
             inputs=[message]
         )
+        # table = gr.HTML(lambda: generate_submit_table()) 虽然可以动态刷新列表，但是效果不理想，暂时不用
+
+        # check.click(
+        #     fn=refresh_submit_table,
+        #     inputs=[],
+        #     outputs=[table]
+        # )
+
+        #用这一套目前还不知道如何动态加载，每次都要重新启动才能刷新
         for submit_folder in submit_list:
             submit_item_is_submit = submit_folder.is_submit
             folder_name = submit_folder.submit_folder
@@ -250,8 +260,61 @@ def create_submit():
 
     return submit_tab
 
+def generate_submit_table():
+    submit_list = data_manager.submit_list
+    table_code = f"""
+    <table>
+        <thead>
+            <tr>
+                <th>Enabled</th>
+                <th>Folder Name</th>
+                <th>Times</th>
+                <th>Sub-items</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    for submit_folder in submit_list:
+        # Generate table rows for each submit folder
+        folder_name = submit_folder.submit_folder
+        times = submit_folder.submit_times
+        submit_items = submit_folder.submit_items
+        
+        sub_items_html = ""
+        for submit_item in submit_items:
+            # Generate HTML for sub-items
+            sub_item_template = submit_item.submit_template
+            sub_item_times = submit_item.submit_times
+            sub_items_html += f"""
+                <li>
+                    <span>{sub_item_template}: {sub_item_times} times</span>
+                </li>
+            """
+
+        row_code = f"""
+            <tr>
+                <td><label><input class="gr-check-radio gr-checkbox" name="enable_{folder_name}" type="checkbox" {'checked="checked"' if submit_folder.is_submit else ''}>{folder_name}</label></td>
+                <td>{folder_name}</td>
+                <td><input type="number" min="1" max="30" name="times_{folder_name}" value="{times}"></td>
+                <td>
+                    <ul>
+                        {sub_items_html}
+                    </ul>
+                </td>
+            </tr>
+        """
+        table_code += row_code
+
+    table_code += """
+        </tbody>
+    </table>
+    """
+
+    return table_code
+
 def init_data():
-    data_manager.refresh_ip()
+    data_manager.refresh_checkpoints()
     data_manager.refresh_templates_folders()
     data_manager.refresh_templates()
     data_manager.refresh_submit_list()
@@ -272,6 +335,7 @@ def create_ui():
     txt2img_interface, txt2img_args = create_txt2img_ui()
     img2img_interface, img2img_args = create_img2img_ui()
     submit_interface = create_submit()
+
     interfaces = [
         (txt2img_interface, "txt2img", "txt2img", txt2img_args),
         (img2img_interface, "img2img", "img2img", img2img_args),
@@ -282,7 +346,7 @@ def create_ui():
         with FormGroup():
             with FormRow():
                 with gr.Row().style(equal_height=False):
-                    ip_text = gr.Textbox(label='ip', value= data_manager.ip , elem_id = 'connect_ip')
+                    ip_text = gr.Textbox(label='ip', value= api_util.ip , elem_id = 'connect_ip')
                     connect_ip = gr.Button('connect', elem_id = 'connect_ip')
                     all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
                     create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
@@ -325,7 +389,7 @@ def create_ui():
             fn=data_manager.load_parameter,
             inputs= [all_templates_folders, folder_templates],
             outputs=[
-                test
+                txt2img_interface
             ]
         )
         tab_items = []

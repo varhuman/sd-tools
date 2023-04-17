@@ -8,6 +8,10 @@ class ApiType(Enum):
     txt2img = "txt2img"
     img2img = "img2img"
 
+class CheckpointModel(BaseModel):
+    title: str
+    model_name: str
+
 class controlnet_modules(Enum):
     none = "none"
     canny = "canny"

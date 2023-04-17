@@ -1,12 +1,14 @@
-from modules.api_models import TemplateBaseModel, Txt2ImgModel, Img2ImgModel, ApiType, SubmitFolderModel, SubmitItemModel
+from modules.api_models import CheckpointModel, TemplateBaseModel, Txt2ImgModel, Img2ImgModel, ApiType, SubmitFolderModel, SubmitItemModel
 import modules.template_utils as template_utils
 import os
 from gradio import Blocks
 import PIL.Image as Image
 import modules.utils as utils
+import modules.api_util as api_util
+import gradio as gr
 
-ip = "127.0.0.1:7860"
 demo:Blocks = None
+checkpoints_models:list[CheckpointModel] = []
 txt_img_data: Txt2ImgModel = Txt2ImgModel()
 img_img_data: Img2ImgModel = Img2ImgModel()
 base_data: TemplateBaseModel = TemplateBaseModel()
@@ -24,10 +26,10 @@ samplers_k_diffusion = [
     'DPM++ SDE Karras',
 ]
 
-checkpoints_models = []
-
-def refresh_ip():
-    return ""
+def refresh_checkpoints():
+    global checkpoints_models
+    checkpoints_models = api_util.get_models()
+    # return checkpoints_models
 
 def refresh_templates_folders():
     global templates_folders
@@ -109,7 +111,7 @@ def load_parameter(template_path, name):
     #name none or empty
     if not name:
         name = template_utils.get_new_template_name(template_path)
-
+    global choose_folder, base_data, img_img_data, txt_img_data
     choose_folder = template_path
     base_data.template_name = name
     temp_data = template_utils.get_model_from_folder(choose_folder, name)
@@ -121,7 +123,7 @@ def load_parameter(template_path, name):
         img_img_data = temp_data.api_model
     elif base_data.template_type == ApiType.txt2img.value:
         txt_img_data = temp_data.api_model
-    return f"成功加载{choose_folder}文件夹下的{base_data.template_name}模板"
+    return gr.update()
 
 def save_parameter(template_path, name, options, template_type_label, *args):
     global choose_folder
