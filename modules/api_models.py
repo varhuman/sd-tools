@@ -56,6 +56,11 @@ class Txt2ImgModel(BaseModel):
     script_args: List[str] = []
     sampler_index: str = "Euler a"
 
+    def get_attribute_value(self, attribute_name):
+        if attribute_name == "sd_model_checkpoint":
+            return self.override_settings.get(attribute_name)
+        return getattr(self, attribute_name)
+
 
     def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index):
         super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index)
@@ -75,29 +80,42 @@ class resize_mode(Enum):
     inpaint_sketch = 3
     inpaint_upload_mask = 4
 
+
+inpainting_fill_choices = ['fill', 'original', 'latent noise', 'latent nothing']
+inpainting_mask_invert_choices = ['Inpaint masked', 'Inpaint not masked']
+resize_mode_choices = ["Just resize", "Crop and resize", "Resize and fill", "Just resize (latent upscale)"]
  # 0 img2img 1 img2img 2 inpaint 3 inpaint sketch 4 inpaint upload mask 暂时我们只需要4和1
 class Img2ImgModel(Txt2ImgModel):
 # 上面的所有参数写出来
-    init_images: List[str] = None #img2img 基础的图都在里面： base64
-    mask:str = None # base64
+    init_images: List[str] = None #img2img 基础的图都在里面： 文件地址
+    mask:str = None # 文件地址
     resize_mode: int = 1#["Just resize", "Crop and resize", "Resize and fill", "Just resize (latent upscale)"]
     denoising_strength: float = 0.72
-    # image_cfg_scale: float =  0.72
-    # init_latent = None
-    # image_mask = ""
-    # latent_mask = None
-    # mask_for_overlay = None
     mask_blur:float = 0.0 #蒙版模糊 4
     inpainting_fill:float = 0.0# 蒙版遮住的内容， 0填充， 1原图 2潜空间噪声 3潜空间数值零
     inpaint_full_res:bool = False # inpaint area 0 whole picture 1：only masked
     inpaint_full_res_padding:int = 32 # Only masked padding, pixels 32
     inpainting_mask_invert:bool = False # 蒙版模式 0重绘蒙版内容 1 重绘非蒙版内容
+    
+    # image_cfg_scale: float =  0.72
+    # init_latent = None
+    # image_mask = ""
+    # latent_mask = None
+    # mask_for_overlay = None
     # nmask = None
     # image_conditioning = None
     alwayson_scripts: Dict[str, Dict[str, str]] = {}
 
-    def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index, inpaint_full_res, inpaint_full_res_padding, init_image, init_mask, mask_blur, inpainting_fill, inpainting_mask_invert):
-        super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index)
+    def get_attribute_value(self, attribute_name):
+        if attribute_name == "init_images":
+            return self.init_images[0] if self.init_images else None
+        return super().get_attribute_value(attribute_name)
+    
+    def get_init_image(self):
+        return self.init_images[0] if self.init_images else None
+    
+    def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index, inpaint_full_res, inpaint_full_res_padding, init_image, init_mask, mask_blur, inpainting_fill, inpainting_mask_invert,resize_mode, denoising_strength):
+        super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index,resize_mode=resize_mode, denoising_strength=denoising_strength)
         self.set_override_settings(checkpoint_model)
         self.setup_img2img_params(init_image, init_mask, mask_blur, inpainting_fill, inpainting_mask_invert, inpaint_full_res, inpaint_full_res_padding)
         self.setup_controlnet_params()

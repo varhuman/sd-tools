@@ -53,7 +53,11 @@ def save_base64_image(base64_data, output_path):
 
 def get_models():
     url = f"http://{ip}/sdapi/v1/sd-models"
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        print("Connection refused")
+        return []
     if response.status_code == 200:
         result = json.loads(response.text)
         models = [CheckpointModel(**model) for model in result]

@@ -7,6 +7,7 @@ import modules.template_utils as template_utils
 import os
 import modules.api_util as api_util
 import time
+import modules.parameter_copypaste as parameter_copypaste
 
 refresh_symbol = '\U0001f504'  # 🔄
 
@@ -50,9 +51,9 @@ def change_folder(choose_folder):
 def get_model_data(model_path):
     data:TemplateBaseModel = template_utils.get_model_from_template_path(model_path)
     data_manager.base_data = data
-    if data.template_type == ApiType.img2img:
+    if data.template_type == ApiType.img2img.value:
         data_manager.img_img_data = data.api_model
-    elif data.template_type == ApiType.txt2img:
+    elif data.template_type == ApiType.txt2img.value:
         data_manager.txt_img_data = data.api_model
 
 def set_txt2img_type():
@@ -62,7 +63,7 @@ def set_img2img_type():
     return ApiType.img2img.value
 
 def create_txt2img_ui():
-    base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
+    t2i_data, samplers = data_manager.txt_img_data, data_manager.samplers_k_diffusion
 
     with gr.Blocks() as txt2img_bolcks:
         with gr.Row():
@@ -90,32 +91,32 @@ def create_txt2img_ui():
                 eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="txt2img_eta", label="eta", value=t2i_data.eta)
                 # t2i_data.script_args = gr.Textbox(label="script_args", elem_id="txt2img_script_args", value=t2i_data.script_args) # not use for now
         txt2img_args = [
-                    txt2img_prompt,
-                    txt2img_negative_prompt,
-                    steps,
-                    sampler_index,
-                    restore_faces,
-                    tiling,
-                    batch_count,
-                    batch_size,
-                    cfg_scale,
-                    seed,
-                    height,
-                    width,
-                    eta,
-                    checkpoint_model,
-                ]
+            (txt2img_prompt, "prompt"),
+            (txt2img_negative_prompt, "negative_prompt"),
+            (steps, "steps"),
+            (sampler_index, "sampler_index"),
+            (restore_faces, "restore_faces"),
+            (tiling, "tiling"),
+            (batch_count, "n_iter"),
+            (batch_size, "batch_size"),
+            (cfg_scale, "cfg_scale"),
+            (seed, "seed"),
+            (height, "height"),
+            (width, "width"),
+            (eta, "eta"),
+            (checkpoint_model, "sd_model_checkpoint"),
+        ]
         
     return txt2img_bolcks, txt2img_args
 
 def create_img2img_ui():
-    base_data, t2i_data, i2i_data, samplers = data_manager.base_data, data_manager.txt_img_data, data_manager.img_img_data, data_manager.samplers_k_diffusion
+    i2i_data, samplers =  data_manager.img_img_data, data_manager.samplers_k_diffusion
 
     with gr.Blocks() as img2img_bolcks:
         with gr.Row():
             with gr.Column(variant='compact'):
                 with FormRow(elem_id="img2img images"):
-                    img_inpaint = gr.Image(label="Image for img2img", show_label=False, source="upload", interactive=True, type="pil", elem_id="img_inpaint_base", value=i2i_data.init_images)
+                    img_inpaint = gr.Image(label="Image for img2img", show_label=False, source="upload", interactive=True, type="pil", elem_id="img_inpaint_base", value=i2i_data.get_init_image())
                     mask_inpaint = gr.Image(label="Mask", source="upload", interactive=True, type="pil", elem_id="img_inpaint_mask", value=i2i_data.mask)
                 with FormRow(elem_id="img2img image params"):
                     with FormGroup(elem_id="inpaint_controls") as inpaint_controls:
@@ -126,7 +127,7 @@ def create_img2img_ui():
 
                             with FormRow():
                                 inpainting_fill = gr.Radio(label='蒙版遮住的内容', choices=['fill', 'original', 'latent noise', 'latent nothing'], value=i2i_data.inpainting_fill, type="index", elem_id="img2img_inpainting_fill")
-
+                                resize_mode = gr.Radio(label='Resize mode', choices=["Just resize", "Crop and resize", "Resize and fill", "Just resize (latent upscale)"], value=i2i_data.resize_mode, type="index", elem_id="img2img_resize_mode")
                             with FormRow():
                                 with gr.Column():
                                     inpaint_full_res = gr.Radio(label="Inpaint area", choices=["Whole picture", "Only masked"], type="index", value=i2i_data.inpaint_full_res, elem_id="img2img_inpaint_full_res")
@@ -135,48 +136,53 @@ def create_img2img_ui():
                                     inpaint_full_res_padding = gr.Slider(label='Only masked padding, pixels', minimum=0, maximum=256, step=4, value=i2i_data.inpaint_full_res_padding, elem_id="img2img_inpaint_full_res_padding")
 
                 with FormRow(elem_id="img2img row1"):
-                    checkpoint_model = gr.Dropdown(label='Model', elem_id="img2img_checkpoint_model", choices=data_manager.checkpoints_models, value=t2i_data.get_checkpoint_model())
+                    checkpoint_model = gr.Dropdown(label='Model', elem_id="img2img_checkpoint_model", choices=[x.model_name for x in data_manager.checkpoints_models], value=i2i_data.get_checkpoint_model())
+                    create_refresh_button(checkpoint_model, data_manager.refresh_checkpoints, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}, "img2img_checkpoint_model")
                 with FormRow(elem_id="img2img row1"):
-                    img2img_prompt = gr.Textbox(label="prompt", elem_id="img2img_prompt", value=t2i_data.prompt)
+                    img2img_prompt = gr.Textbox(label="prompt", elem_id="img2img_prompt", value=i2i_data.prompt)
                 with FormRow(elem_id="img2img row2"):
-                    img2img_negative_prompt = gr.Textbox(label="negative_prompt", elem_id="img2img_negative_prompt", value=t2i_data.negative_prompt)
+                    img2img_negative_prompt = gr.Textbox(label="negative_prompt", elem_id="img2img_negative_prompt", value=i2i_data.negative_prompt)
                 with FormRow(elem_id="img2img row3"):
-                    restore_faces = gr.Checkbox(label="restore_faces", elem_id="img2img_restore_faces", value=t2i_data.restore_faces)
-                    tiling = gr.Checkbox(label="tiling", elem_id="img2img_tiling", value=t2i_data.tiling)
+                    restore_faces = gr.Checkbox(label="restore_faces", elem_id="img2img_restore_faces", value=i2i_data.restore_faces)
+                    tiling = gr.Checkbox(label="tiling", elem_id="img2img_tiling", value=i2i_data.tiling)
                     seed = gr.Number(label='Seed', value= -1 , elem_id = 'img2img_seed')
-                    sampler_index = gr.Dropdown(label='Sampling method', elem_id="img2img_sampling", choices=samplers, value=t2i_data.sampler_index)
+                    sampler_index = gr.Dropdown(label='Sampling method', elem_id="img2img_sampling", choices=samplers, value=i2i_data.sampler_index)
                     
             with gr.Column(variant='compact'):
-                steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id="img2img_steps", label="Sampling steps", value=t2i_data.steps)
-                cfg_scale = gr.Slider(minimum=1, maximum=30, step=0.5, elem_id="img2img_cfg_scale", label="cfg_scale", value=t2i_data.cfg_scale)
-                width = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_width", label="width", value=t2i_data.width)
-                height = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_height", label="height", value=t2i_data.height)
-                batch_size = gr.Slider(minimum=1, maximum=1024, step=1, elem_id="img2img_batch_size", label="batch_size", value=t2i_data.batch_size)
-                batch_count = gr.Slider(minimum=1, maximum=100, step=1, elem_id="img2img_n_iter", label="n_iter", value=t2i_data.n_iter)
-                eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="img2img_eta", label="eta", value=t2i_data.eta)
+                denoising_strength = gr.Slider(minimum=0, maximum=1, step=0.01, elem_id="img2img_denoising_strength", label="Denoising strength", value=i2i_data.denoising_strength)
+                steps = gr.Slider(minimum=1, maximum=150, step=1, elem_id="img2img_steps", label="Sampling steps", value=i2i_data.steps)
+                cfg_scale = gr.Slider(minimum=1, maximum=30, step=0.5, elem_id="img2img_cfg_scale", label="cfg_scale", value=i2i_data.cfg_scale)
+                width = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_width", label="width", value=i2i_data.width)
+                height = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="img2img_height", label="height", value=i2i_data.height)
+                batch_size = gr.Slider(minimum=1, maximum=1024, step=1, elem_id="img2img_batch_size", label="batch_size", value=i2i_data.batch_size)
+                batch_count = gr.Slider(minimum=1, maximum=100, step=1, elem_id="img2img_n_iter", label="n_iter", value=i2i_data.n_iter)
+                eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="img2img_eta", label="eta", value=i2i_data.eta)
+
         img2img_args = [
-            img2img_prompt,
-            img2img_negative_prompt,
-            restore_faces,
-            tiling,
-            seed,
-            sampler_index,
-            steps,
-            cfg_scale,
-            width,
-            height,
-            batch_size,
-            batch_count,
-            eta,
-            inpaint_full_res,
-            inpaint_full_res_padding,
-            checkpoint_model,
-            img_inpaint,
-            mask_inpaint,
-            mask_blur,
-            inpainting_fill,
-            inpainting_mask_invert,
-                ]
+            (img2img_prompt, 'prompt'),
+            (img2img_negative_prompt, 'negative_prompt'),
+            (restore_faces, 'restore_faces'),
+            (tiling, 'tiling'),
+            (seed, 'seed'),
+            (sampler_index, 'sampler_index'),
+            (steps, 'steps'),
+            (cfg_scale, 'cfg_scale'),
+            (width, 'width'),
+            (height, 'height'),
+            (batch_size, 'batch_size'),
+            (batch_count, 'n_iter'),
+            (eta, 'eta'),
+            (inpaint_full_res, 'inpaint_full_res'),
+            (inpaint_full_res_padding, 'inpaint_full_res_padding'),
+            (checkpoint_model, 'sd_model_checkpoint'),
+            (img_inpaint, 'init_images'),
+            (mask_inpaint, 'mask'),
+            (mask_blur, 'mask_blur'),
+            (inpainting_fill, 'inpainting_fill'),
+            (inpainting_mask_invert, 'inpainting_mask_invert'),
+            (resize_mode, 'resize_mode'),
+            (denoising_strength, 'denoising_strength'),
+        ]
         
     return img2img_bolcks, img2img_args
         
@@ -337,22 +343,22 @@ def create_ui():
     submit_interface = create_submit()
 
     interfaces = [
-        (txt2img_interface, "txt2img", "txt2img", txt2img_args),
-        (img2img_interface, "img2img", "img2img", img2img_args),
-        (submit_interface, "submit", "submit", txt2img_args),
+        (txt2img_interface, "txt2img", "txt2img", [x[0] for x in txt2img_args]),
+        (img2img_interface, "img2img", "img2img", [x[0] for x in img2img_args]),
+        (submit_interface, "submit", "submit", [x[0] for x in txt2img_args]),
     ]
 
     with gr.Blocks(css=css, analytics_enabled=False, title="Stable Diffusion") as demo:
         with FormGroup():
             with FormRow():
-                with gr.Row().style(equal_height=False):
+                with gr.Row().style(equal_height=True):
                     ip_text = gr.Textbox(label='ip', value= api_util.ip , elem_id = 'connect_ip')
                     connect_ip = gr.Button('connect', elem_id = 'connect_ip')
                     all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
                     create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
                     folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
                     create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
-                    load = gr.Button('加载模板', elem_id = 'load_template')
+                    get_template_info_btn = gr.Button('查看模板信息', elem_id = 'get_template_info')
 
                     all_templates_folders.change(
                         fn=change_folder,
@@ -364,32 +370,37 @@ def create_ui():
             template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
             template_folder = gr.Textbox(label="正在编辑的模板所处文件夹", elem_id="template_folder", value=data_manager.choose_folder)
             template_option = gr.Textbox(label="特殊设置", elem_id="template_option", value=base_data.options)
-            template_type_label = gr.Label(base_data.template_type, elem_id="template_type")
-
+            template_type_label = gr.Label(base_data.template_type, elem_id="template_type",visible=False)
+            save_txt = gr.Button('保存txt模板', elem_id = 'save_txt_template')
+            save_img = gr.Button('保存img模板', elem_id = 'save_img_template')
+            
 
         with FormRow():
-            save = gr.Button('保存模板', elem_id = 'save_template')
-            save2 = gr.Button('保存模板2', elem_id = 'save_template')
-            test = gr.Label("test",elem_id="test")
-        save.click(
+            info_textbox = gr.Label("info",elem_id="info_textbox")
+            load_txt2img = gr.Button('加载模板 to txt2img', elem_id = 'load_txt2img_template')
+            load_img2img = gr.Button('加载模板 to img2img', elem_id = 'load_img2img_template')
+
+        save_txt.click(
             fn=data_manager.save_parameter,
-            inputs= [template_folder, template_name, template_option, template_type_label] + txt2img_args,
+            inputs= [template_folder, template_name, template_option, template_type_label] + [x[0] for x in txt2img_args],
             outputs=[
-                test
+                info_textbox
             ]
         )
-        save2.click(
+        save_img.click(
             fn=data_manager.save_parameter,
-            inputs= [template_folder, template_name, template_option, template_type_label] + img2img_args,
+            inputs= [template_folder, template_name, template_option, template_type_label] + [x[0] for x in img2img_args],
             outputs=[
-                test
+                info_textbox
             ]
         )
-        load.click(
-            fn=data_manager.load_parameter,
+        parameter_copypaste.connect_paste(load_txt2img, txt2img_args)
+        parameter_copypaste.connect_paste(load_img2img, img2img_args)
+        get_template_info_btn.click(
+            fn=data_manager.get_info_in_template_path,
             inputs= [all_templates_folders, folder_templates],
             outputs=[
-                txt2img_interface
+                info_textbox
             ]
         )
         tab_items = []
