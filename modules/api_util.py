@@ -93,7 +93,7 @@ def txt2img_post(img_name, txt2img_model: Txt2ImgModel, output_folder: str):
 def img2img_post(img_name, img2img_model: Img2ImgModel, output_folder: str):
     url = f"http://{ip}/sdapi/v1/img2img"
 
-    data = json.dumps(img2img_model.dict(), default=lambda o: o.__dict__)
+    data = json.dumps(img2img_model.custom_to_dict(), default=lambda o: o.__dict__)
 
     headers = {
         "Content-Type": "application/json"
@@ -116,15 +116,16 @@ def img2img_post(img_name, img2img_model: Img2ImgModel, output_folder: str):
 
 def submit_all(mention_label:gr.Label):
     submit_list = data_manager.submit_list
-    # for i in range(len(submit_list)):
-    #     if submit_list[i].is_submit:
-    #         for submit_template in submit_list[i].submit_items:
-    #             if submit_template.is_submit:
-    #                 if submit_template.data.template_type  == "txt2img":
-    #                     txt2img_model = submit_template.data.api_model
-    #                     txt2img_post(f"{submit_template.submit_template}_output", txt2img_model, "output")
-    #                     mention_label.update(value = f"成功提交{submit_list[i].submit_folder}\\{submit_template.submit_template}!")
-    #                 elif submit_template.data.template_type  == "img2img":
-    #                     img2img_model = submit_template.data.api_model
-    #                     img2img_post(f"{submit_template.submit_template}_output", img2img_model, "output")
-    #                     mention_label.update(value = f"img成功提交{submit_list[i].submit_folder}\\{submit_template.submit_template}!")
+    for i in range(len(submit_list)):
+        if submit_list[i].is_submit:
+            for submit_template in submit_list[i].submit_items:
+                if submit_template.is_submit:
+                    if submit_template.data.template_type  == "txt2img":
+                        txt2img_model = submit_template.data.api_model
+                        txt2img_post(f"{submit_template.submit_template}_output", txt2img_model, "output")
+                        mention_label.update(value = f"成功提交{submit_list[i].submit_folder}\\{submit_template.submit_template}!")
+                    elif submit_template.data.template_type  == "img2img":
+                        img2img_model = submit_template.data.api_model
+                        img2img_post(f"{submit_template.submit_template}_output", img2img_model, "output")
+                        mention_label.update(value = f"img成功提交{submit_list[i].submit_folder}\\{submit_template.submit_template}!")
+    return "正在处理中。。。"

@@ -9,6 +9,13 @@ def setup_test_env():
     if ext_root not in sys.path:
         sys.path.append(ext_root)
 
+#读取文件地址为图片并转换为base64返回
+def image_path_to_base64(image_path):
+    if not image_path:
+        return image_path
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 def image_to_base64(image:Image):
     with io.BytesIO() as output:
         image.save(output, format="JPEG")

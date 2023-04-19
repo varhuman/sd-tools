@@ -182,6 +182,17 @@ class Img2ImgModel(Txt2ImgModel):
     def get_controlnet_params(self):
         return self.alwayson_scripts["ControlNet"]["args"] if "ControlNet" in self.alwayson_scripts else ControlNet_Model()
 
+    def custom_to_dict(self):
+        res_dict = self.dict()
+        init_image = utils.image_path_to_base64(self.init_images[0])
+        res_dict["init_images"][0] = init_image
+        res_dict["mask"] = utils.image_path_to_base64(self.mask)
+        controlnet_args:ControlNet_Model = self.get_controlnet_params()
+        if controlnet_args:
+            res_dict["alwayson_scripts"]["ControlNet"]["args"]["image"] = utils.image_path_to_base64(controlnet_args["image"])
+            res_dict["alwayson_scripts"]["ControlNet"]["args"]["mask"] = utils.image_path_to_base64(controlnet_args["mask"])
+        return res_dict
+
 class ControlNet_Model(BaseModel):
     enabled: bool = True
     module: str = controlnet_modules.openpose.value
