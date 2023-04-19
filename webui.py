@@ -1,5 +1,5 @@
 import gradio as gr
-from modules.api_models import ApiType, TemplateBaseModel, SubmitFolderModel,SubmitItemModel, CheckpointModel
+from modules.api_models import ApiType, TemplateBaseModel, SubmitFolderModel,SubmitItemModel, CheckpointModel, ControlNet_Model
 import modules.api_models as api_models
 import modules.data_manager as data_manager
 from ui_components import FormRow, ToolButton, FormGroup
@@ -10,19 +10,13 @@ import time
 import modules.parameter_copypaste as parameter_copypaste
 
 refresh_symbol = '\U0001f504'  # 🔄
-
-def restart_ui():
-    #this is not working
-    time.sleep(0.5)
-    data_manager.demo.close()
     
-    time.sleep(0.5)
-    data_manager.demo = create_ui()
-    data_manager.demo.launch(
-        share=False,
-    )
-    
-    time.sleep(0.5)
+def connect_ip_click(ip_text):
+    ip = api_util.ip = ip_text
+    if api_util.get_models() != []:
+        return "连接成功！"
+    else:
+        return "连接失败！IP错误，或者sd服务未开启"
 
 def create_refresh_button(refresh_component, refresh_method, refreshed_args, elem_id):
     def refresh():
@@ -111,6 +105,7 @@ def create_txt2img_ui():
 
 def create_img2img_ui():
     i2i_data, samplers =  data_manager.img_img_data, data_manager.samplers_k_diffusion
+    controlnet_data:ControlNet_Model = data_manager.img_img_data.get_controlnet_params()
 
     with gr.Blocks() as img2img_bolcks:
         with gr.Row():
@@ -123,14 +118,14 @@ def create_img2img_ui():
                             with FormRow():
                                 mask_blur = gr.Slider(label='Mask blur', minimum=0, maximum=64, step=1, value=i2i_data.mask_blur, elem_id="img2img_mask_blur")
                             with FormRow():
-                                inpainting_mask_invert = gr.Radio(label='重绘蒙版', choices=['Inpaint masked', 'Inpaint not masked'], value=i2i_data.inpainting_mask_invert, type="index", elem_id="img2img_mask_mode")
+                                inpainting_mask_invert = gr.Radio(label='重绘蒙版', choices=api_models.inpainting_mask_invert_choices, value=api_models.inpainting_mask_invert_choices[i2i_data.inpainting_mask_invert], type="index", elem_id="img2img_mask_mode")
 
                             with FormRow():
-                                inpainting_fill = gr.Radio(label='蒙版遮住的内容', choices=['fill', 'original', 'latent noise', 'latent nothing'], value=i2i_data.inpainting_fill, type="index", elem_id="img2img_inpainting_fill")
-                                resize_mode = gr.Radio(label='Resize mode', choices=["Just resize", "Crop and resize", "Resize and fill", "Just resize (latent upscale)"], value=i2i_data.resize_mode, type="index", elem_id="img2img_resize_mode")
+                                inpainting_fill = gr.Radio(label='蒙版遮住的内容', choices=api_models.inpainting_fill_choices, value=api_models.inpainting_fill_choices[i2i_data.inpainting_fill], type="index", elem_id="img2img_inpainting_fill")
+                                resize_mode = gr.Radio(label='缩放模式', choices=api_models.resize_mode_choices, value=api_models.resize_mode_choices[i2i_data.resize_mode], type="index", elem_id="img2img_resize_mode")
                             with FormRow():
                                 with gr.Column():
-                                    inpaint_full_res = gr.Radio(label="Inpaint area", choices=["Whole picture", "Only masked"], type="index", value=i2i_data.inpaint_full_res, elem_id="img2img_inpaint_full_res")
+                                    inpaint_full_res = gr.Radio(label="Inpaint area", choices=api_models.inpaint_full_res_choices, type="index", value=api_models.inpaint_full_res_choices[i2i_data.inpaint_full_res], elem_id="img2img_inpaint_full_res")
 
                                 with gr.Column(scale=4):
                                     inpaint_full_res_padding = gr.Slider(label='Only masked padding, pixels', minimum=0, maximum=256, step=4, value=i2i_data.inpaint_full_res_padding, elem_id="img2img_inpaint_full_res_padding")
@@ -157,7 +152,28 @@ def create_img2img_ui():
                 batch_size = gr.Slider(minimum=1, maximum=1024, step=1, elem_id="img2img_batch_size", label="batch_size", value=i2i_data.batch_size)
                 batch_count = gr.Slider(minimum=1, maximum=100, step=1, elem_id="img2img_n_iter", label="n_iter", value=i2i_data.n_iter)
                 eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="img2img_eta", label="eta", value=i2i_data.eta)
+            # 添加 ControlNet 参数的 UI 控件
+        with gr.Accordion("controlnet", open=False):
+            with gr.Row():
+                with gr.Column(variant='compact'):
+                    control_enabled = gr.Checkbox(label="Enabled", elem_id="controlnet_enabled", value=controlnet_data.enabled)
+                    control_module = gr.Dropdown(label='Module', elem_id="controlnet_module", choices=data_manager.control_net_modules, value=controlnet_data.module)
+                    control_model = gr.Dropdown(label='Module', elem_id="controlnet_model", choices=data_manager.control_net_models, value=controlnet_data.model)
+                    control_weight = gr.Slider(minimum=0, maximum=10, step=0.1, elem_id="controlnet_weight", label="Weight", value=controlnet_data.weight)
+                    control_image = gr.Image(label="Image", source="upload", interactive=True, type="pil", elem_id="controlnet_image", value=controlnet_data.image)
+                    control_mask = gr.Image(label="Mask", source="upload", interactive=True, type="pil", elem_id="controlnet_mask", value=controlnet_data.mask)
+                    control_invert_image = gr.Checkbox(label="Invert Image", elem_id="controlnet_invert_image", value=controlnet_data.invert_image)
+                    control_resize_mode = gr.Radio(label='Resize Mode', choices=api_models.controlnet_resize_mode, value=api_models.controlnet_resize_mode[controlnet_data.resize_mode], type="index", elem_id="controlnet_resize_mode")
+                    control_rgbbgr_mode = gr.Checkbox(label="RGB-BGR Mode", elem_id="controlnet_rgbbgr_mode", value=controlnet_data.rgbbgr_mode)
+                    control_lowvram = gr.Checkbox(label="Low VRAM", elem_id="controlnet_lowvram", value=controlnet_data.lowvram)
+                    control_processor_res = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="controlnet_processor_res", label="Processor Resolution", value=controlnet_data.processor_res)
+                    control_threshold_a = gr.Slider(minimum=0, maximum=255, step=1, elem_id="controlnet_threshold_a", label="Threshold A", value=controlnet_data.threshold_a)
+                    control_threshold_b = gr.Slider(minimum=0, maximum=255, step=1, elem_id="controlnet_threshold_b", label="Threshold B", value=controlnet_data.threshold_b)
+                    control_guidance_start = gr.Slider(minimum=0, maximum=1, step=0.01, elem_id="controlnet_guidance_start", label="Guidance Start", value=controlnet_data.guidance_start)
+                    control_guidance_end = gr.Slider(minimum=0, maximum=1, step=0.01, elem_id="controlnet_guidance_end", label="Guidance End", value=controlnet_data.guidance_end)
+                    control_guessmode = gr.Checkbox(label="Guess Mode", elem_id="controlnet_guessmode", value=controlnet_data.guessmode)
 
+            # 将 ControlNet 参数的 UI 控件添加到返回值中
         img2img_args = [
             (img2img_prompt, 'prompt'),
             (img2img_negative_prompt, 'negative_prompt'),
@@ -182,6 +198,22 @@ def create_img2img_ui():
             (inpainting_mask_invert, 'inpainting_mask_invert'),
             (resize_mode, 'resize_mode'),
             (denoising_strength, 'denoising_strength'),
+            (control_enabled, 'control_enabled'),
+            (control_module, 'control_module'),
+            (control_model, 'control_model'),
+            (control_weight, 'control_weight'),
+            (control_image, 'control_image'),
+            (control_mask, 'control_mask'),
+            (control_invert_image, 'control_invert_image'),
+            (control_resize_mode, 'control_resize_mode'),
+            (control_rgbbgr_mode, 'control_rgbbgr_mode'),
+            (control_lowvram, 'control_lowvram'),
+            (control_processor_res, 'control_processor_res'),
+            (control_threshold_a, 'control_threshold_a'),
+            (control_threshold_b, 'control_threshold_b'),
+            (control_guidance_start, 'control_guidance_start'),
+            (control_guidance_end, 'control_guidance_end'),
+            (control_guessmode, 'control_guessmode'),
         ]
         
     return img2img_bolcks, img2img_args
@@ -379,7 +411,11 @@ def create_ui():
             info_textbox = gr.Label("info",elem_id="info_textbox")
             load_txt2img = gr.Button('加载模板 to txt2img', elem_id = 'load_txt2img_template')
             load_img2img = gr.Button('加载模板 to img2img', elem_id = 'load_img2img_template')
-
+        connect_ip.click(
+            fn=connect_ip_click,
+            inputs=[ip_text],
+            outputs=[info_textbox]
+        )
         save_txt.click(
             fn=data_manager.save_parameter,
             inputs= [template_folder, template_name, template_option, template_type_label] + [x[0] for x in txt2img_args],

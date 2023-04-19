@@ -9,7 +9,6 @@ import gradio as gr
 import modules.file_util as file_util
 
 demo:Blocks = None
-checkpoints_models:list[CheckpointModel] = []
 txt_img_data: Txt2ImgModel = Txt2ImgModel()
 img_img_data: Img2ImgModel = Img2ImgModel()
 base_data: TemplateBaseModel = TemplateBaseModel()
@@ -28,6 +27,67 @@ samplers_k_diffusion = [
     'DPM++ 2M Karras',
     'DPM++ SDE Karras',
 ]
+
+# these data is choose by your stable diffusion model
+checkpoints_models:list[CheckpointModel] = []
+
+#这个如果需要从sd中获取，需要改controlnet的api代码，降低门槛，直接写死好了，下面是我的model名字
+control_net_models:list[str] = [
+    None,
+    "control_canny-fp16 [e3fe7712]",
+    "control_depth-fp16 [400750f6]",
+    "control_hed-fp16 [13fee50b]",
+    "control_mlsd-fp16 [e3705cfa]",
+    "control_normal-fp16 [63f96f7c]",
+    "control_openpose-fp16 [9ca67cc5]",
+    "control_scribble-fp16 [c508311e]",
+    "control_seg-fp16 [b9c1cc12]",
+]
+
+control_net_modules = [
+            "none",
+
+            "canny",
+            
+            "depth_midas",                  
+            "depth_leres",                  
+            "depth_zoe",                    
+
+            "lineart",                      
+            "lineart_coarse",               
+            "lineart_anime",                
+            
+            "mlsd",                         
+
+            "normal_midas",                 
+            "normal_bae",                   
+
+            "openpose",                     
+            "openpose_face",                
+            "openpose_faceonly",            
+            "openpose_hand",                
+            "openpose_full",                
+            
+            "scribble_hed",
+            "scribble_pidinet",
+            "scribble_xdog",
+
+            "seg_ofcoco",                   
+            "seg_ofade20k",                 
+            "seg_ufade20k",                 
+
+            "shuffle",
+
+            "softedge_hed",                 
+            "softedge_hedsafe",             
+            "softedge_pidinet",             
+            "softedge_pidisafe",            
+
+            "t2ia_color_grid",
+            "t2ia_sketch_pidi",
+
+            "threshold"
+        ]
 
 def refresh_checkpoints():
     global checkpoints_models
@@ -92,7 +152,9 @@ def get_txt2img_model(txt2img_prompt, txt2img_negative_prompt, steps, sampler_in
                         tiling=tiling, n_iter=batch_count, batch_size=batch_size, cfg_scale=cfg_scale, 
                         seed=seed, height=height, width=width, checkpoint_model=checkpoint_model, eta=eta)
 
-def get_img2img_model(save_path, img2img_prompt, img2img_negative_prompt, restore_faces, tiling, seed, sampler_index, steps, cfg_scale, width, height, batch_size, batch_count, eta, inpaint_full_res, inpaint_full_res_padding, checkpoint_model, img_inpaint:Image, mask_inpaint:Image, mask_blur, inpainting_fill, inpainting_mask_invert, resize_mode, denoising_strength):
+def get_img2img_model(save_path, img2img_prompt, img2img_negative_prompt, restore_faces, tiling, seed, sampler_index, steps, cfg_scale, width, height, batch_size, batch_count, eta, inpaint_full_res, inpaint_full_res_padding, checkpoint_model, img_inpaint:Image, mask_inpaint:Image, mask_blur, inpainting_fill, inpainting_mask_invert, resize_mode, denoising_strength,control_enabled,
+                      control_module, control_model, control_weight, control_image, control_mask, control_invert_image, control_resize_mode, control_rgbbgr_mode, 
+                      control_lowvram, control_processor_res, control_threshold_a, control_threshold_b, control_guidance_start, control_guidance_end, control_guessmode):
     if img_inpaint is not None:
         if save_path is not None:
             img_save_path = os.path.join(save_path, "init_image.png")
@@ -105,6 +167,16 @@ def get_img2img_model(save_path, img2img_prompt, img2img_negative_prompt, restor
         init_mask = mask_path
     else:
         init_mask = ""
+    if control_image is not None:
+        if save_path is not None:
+            control_image_path = os.path.join(save_path, "control_image.png")
+            control_image.save(control_image_path)
+        control_image = control_image_path
+    if control_mask is not None:
+        if save_path is not None:
+            control_mask_path = os.path.join(save_path, "control_mask.png")
+            control_mask.save(control_mask_path)
+        control_mask = control_mask_path
     return Img2ImgModel().create(prompt=img2img_prompt, negative_prompt=img2img_negative_prompt, 
                         restore_faces=restore_faces, tiling=tiling, seed=seed, sampler_index=sampler_index, 
                         steps=steps, cfg_scale=cfg_scale, width=width, height=height, batch_size=batch_size, 
@@ -112,7 +184,11 @@ def get_img2img_model(save_path, img2img_prompt, img2img_negative_prompt, restor
                         inpaint_full_res_padding=inpaint_full_res_padding, checkpoint_model=checkpoint_model, 
                         init_image=init_image, init_mask=init_mask, mask_blur=mask_blur, 
                         inpainting_fill=inpainting_fill, inpainting_mask_invert=inpainting_mask_invert,
-                        resize_mode=resize_mode, denoising_strength=denoising_strength)
+                        resize_mode=resize_mode, denoising_strength=denoising_strength,
+                        control_enabled=control_enabled,control_module=control_module, control_model=control_model, control_weight=control_weight, control_image=control_image, 
+                        control_mask=control_mask, control_invert_image=control_invert_image, control_resize_mode=control_resize_mode, control_rgbbgr_mode=control_rgbbgr_mode,
+                        control_lowvram=control_lowvram, control_processor_res=control_processor_res, control_threshold_a=control_threshold_a, control_threshold_b=control_threshold_b,
+                        control_guidance_start=control_guidance_start, control_guidance_end=control_guidance_end, control_guessmode=control_guessmode)
 
 def get_info_in_template_path(template_path, name):
     if not template_path:
