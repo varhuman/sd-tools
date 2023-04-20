@@ -60,7 +60,9 @@ class Txt2ImgModel(BaseModel):
 
     def get_attribute_value(self, attribute_name):
         if attribute_name == "sd_model_checkpoint":
-            return self.override_settings.get(attribute_name)
+            title = self.override_settings.get(attribute_name)
+            model_name = utils.get_model_name_from_title(title)
+            return model_name[0] if model_name else None
         return getattr(self, attribute_name)
 
 
@@ -71,7 +73,8 @@ class Txt2ImgModel(BaseModel):
 
     def set_override_settings(self, model):
         self.override_settings={}
-        self.override_settings['sd_model_checkpoint'] = model
+        title = utils.get_title_from_model_name(model)
+        self.override_settings['sd_model_checkpoint'] = title if title else None
 
     def get_checkpoint_model(self):
         return self.override_settings['sd_model_checkpoint'] if 'sd_model_checkpoint' in self.override_settings else None

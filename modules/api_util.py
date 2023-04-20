@@ -59,6 +59,8 @@ def save_images_to_grids(images, output_path, labels, images_per_row = 4):
         canvas.paste(image, (x, y))
         draw.text((x, y + max_height - 30), label, font=font, fill=(0, 0, 0))
 
+    output_path = output_path + ".jpg"
+
     # 保存拼接后的图片
     canvas.save(output_path, "JPEG")
 
@@ -82,6 +84,7 @@ def merge_images_horizontally(base64_data_list, images_per_row, output_path):
         y = img_height * (index // images_per_row)
         merged_image.paste(image, (x, y))
 
+    output_path = output_path + ".jpg"
     # 保存合并后的图片
     merged_image.save(output_path)
     return merged_image
