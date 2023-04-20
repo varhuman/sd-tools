@@ -239,9 +239,18 @@ def create_submit_item(item: SubmitItemModel):
             is_submit = gr.Checkbox(label="是否执行", elem_id="is_submit" + item.submit_template, value=item.is_submit)
             submit_template = gr.Label(item.submit_template)
             submit_times = gr.Slider(label='执行次数', value=item.submit_times, step=1, minimum=1, maximum=30, elem_id = 'submit_times' + item.submit_template)
+            submit_times.change(
+                fn=submit_times_change(item=item),
+                inputs=[submit_times],
+            )  
     return is_submit, submit_template, submit_times, submit_item
 
 def submit_times_change(item: SubmitItemModel):
+    def fn(times, item=item):
+        item.submit_times = times
+    return fn
+
+def submit_times_change_folder(item: SubmitFolderModel):
     def fn(times, item=item):
         item.submit_times = times
     return fn
@@ -273,7 +282,8 @@ def create_submit():
         submit_btn = gr.Button("提交", elem_id="submit_btn")
         submit_btn.click(
             fn=api_util.submit_all,
-            inputs=[message]
+            inputs=[message],
+            outputs=[message]
         )
         # table = gr.HTML(lambda: generate_submit_table()) 虽然可以动态刷新列表，但是效果不理想，暂时不用
 
@@ -300,7 +310,7 @@ def create_submit():
                         inputs=[enabled],
                     )
                     submit_times.change(
-                        fn=submit_times_change(item=submit_folder),
+                        fn=submit_times_change_folder(item=submit_folder),
                         inputs=[submit_times],
                     )  
                     all_ui.append(enabled)
@@ -401,7 +411,7 @@ def create_ui():
         (submit_interface, "submit", "submit", [x[0] for x in txt2img_args]),
     ]
 
-    with gr.Blocks(css=css, analytics_enabled=False, title="Stable Diffusion") as demo:
+    with gr.Blocks(css=css, analytics_enabled=False, title="SD Submit Tool") as demo:
         with FormGroup():
             with FormRow():
                 with gr.Row().style(equal_height=True):

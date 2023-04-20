@@ -3,6 +3,7 @@ import modules.file_util as file_util
 import json
 from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel, to_serializable
 import modules.log_util as logger
+from datetime import datetime
 
 work_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 work_dir = os.path.join(work_dir, "templates")
@@ -59,6 +60,10 @@ def get_model_from_template(json):
     apiTypeModel = TemplateBaseModel(**data)
     return apiTypeModel
 
+def get_input_images_save_path(folder):
+    save_path = os.path.join(work_dir, folder, "input_images")
+    return save_path
+
 #将apiTypeModel转换成json并存储到template得指定文件夹下
 def save_template_model(folder, apiTypeModel:TemplateBaseModel):
     json_file = os.path.join(work_dir, folder, apiTypeModel.template_name + ".json")
@@ -70,3 +75,11 @@ def check_templates_folder_is_exist(folder):
 
 def check_templates_folder_is_exist(folder, template):
     return template in get_templates_from_folder(folder)
+
+#将apiTypeModel转换成json并存储到template得指定文件夹下
+def get_image_save_path(folder):
+    current_time = datetime.now()
+    # 将时间格式化为指定的字符串形式
+    time_folder = current_time.strftime("%Y_%m_%d_%H_%M_%S")
+    save_path = os.path.join(work_dir, folder,"output", time_folder)
+    return save_path

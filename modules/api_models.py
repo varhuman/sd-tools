@@ -3,6 +3,8 @@ from enum import Enum
 from typing import List, Dict, Union, Any
 import requests
 import modules.utils as utils
+import re
+
 #give a enum for txt and img
 class ApiType(Enum):
     txt2img = "txt2img"
@@ -192,6 +194,49 @@ class Img2ImgModel(Txt2ImgModel):
             res_dict["alwayson_scripts"]["ControlNet"]["args"]["image"] = utils.image_path_to_base64(controlnet_args["image"])
             res_dict["alwayson_scripts"]["ControlNet"]["args"]["mask"] = utils.image_path_to_base64(controlnet_args["mask"])
         return res_dict
+
+def parse_string_to_img2img_model(s: str) -> Img2ImgModel:
+    def get_int_value(pattern: str, default: int = 0):
+        match = re.search(pattern, s)
+        return int(match.group(1)) if match else default
+
+    def get_float_value(pattern: str, default: float = 0.0):
+        match = re.search(pattern, s)
+        return float(match.group(1)) if match else default
+
+    def get_string_value(pattern: str, default: str = ''):
+        match = re.search(pattern, s)
+        return match.group(1) if match else default
+
+    prompt = get_string_value(r'(.*),\s*Negative prompt:', '')
+    negative_prompt = get_string_value(r'Negative prompt: (.*),\s*Steps:', '')
+    steps = get_int_value(r'Steps: (\d+),')
+    sampler = get_string_value(r'Sampler: ([^,]+),', '')
+    cfg_scale = get_int_value(r'CFG scale: (\d+),')
+    seed = get_int_value(r'Seed: (\d+),')
+    restoration = get_string_value(r'Face restoration: ([^,]+),', '')
+    size = re.search(r'Size: (\d+)x(\d+),', s)
+    width, height = int(size.group(1)), int(size.group(2)) if size else (512, 512)
+    checkpoint_model = get_string_value(r'Model hash: ([^,]+),', '')
+    denoising_strength = get_float_value(r'Denoising strength: ([^,]+),')
+    ensd = get_int_value(r'ENSD: (\d+),')
+    mask_blur = get_int_value(r'Mask blur: (\d+),')
+
+    return Img2ImgModel(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        seed=seed,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        width=width,
+        height=height,
+        sampler=sampler,
+        restore_faces=restoration,
+        checkpoint_model=checkpoint_model,
+        denoising_strength=denoising_strength,
+        mask_blur=mask_blur
+    )
+
 
 class ControlNet_Model(BaseModel):
     enabled: bool = True

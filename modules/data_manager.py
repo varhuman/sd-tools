@@ -217,7 +217,8 @@ def save_parameter(template_path, name, options, template_type_label, *args):
     if base_data.template_type == ApiType.txt2img.value:
         base_data.api_model = get_txt2img_model(*args)
     elif base_data.template_type == ApiType.img2img.value:
-        save_path = os.path.join(choose_folder, "image", name)
+        save_path = template_utils.get_input_images_save_path(choose_folder)
+        save_path = os.path.join(save_path, name)
         file_util.check_folder(save_path)
         base_data.api_model = get_img2img_model(save_path, *args)
     template_utils.save_template_model(choose_folder, base_data)
