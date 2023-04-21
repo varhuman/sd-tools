@@ -130,3 +130,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#忽略templates文件夹下的所有json文件
+#忽略templates文件夹下的所有jpg文件
+#忽略templates文件夹下的所有png文件
+templates/**/*.json
+templates/**/*.jpg
+templates/**/*.png
