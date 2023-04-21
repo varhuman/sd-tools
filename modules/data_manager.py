@@ -199,7 +199,8 @@ def get_info_in_template_path(template_path, name):
     choose_folder = template_path
     temp_data = template_utils.get_model_from_folder(choose_folder, name)
     pre_choose_template = temp_data
-    return str(pre_choose_template)
+    res = "读取成功！\n"+ str(pre_choose_template.api_model)
+    return utils.get_ellipsis_string(res, 20)
 
 def save_parameter(template_path, name, options, template_type_label, *args):
     global choose_folder

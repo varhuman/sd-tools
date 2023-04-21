@@ -383,6 +383,8 @@ def generate_submit_table():
     return table_code
 
 def init_data():
+    ip = os.getenv("CONNECT_IP")
+    api_util.ip = ip
     data_manager.refresh_checkpoints()
     data_manager.refresh_templates_folders()
     data_manager.refresh_templates()
@@ -417,17 +419,6 @@ def create_ui():
                 with gr.Row().style(equal_height=True):
                     ip_text = gr.Textbox(label='ip', value= api_util.ip , elem_id = 'connect_ip')
                     connect_ip = gr.Button('connect', elem_id = 'connect_ip')
-                    all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
-                    create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
-                    folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
-                    create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
-                    get_template_info_btn = gr.Button('查看模板信息', elem_id = 'get_template_info')
-
-                    all_templates_folders.change(
-                        fn=change_folder,
-                        inputs=[all_templates_folders],
-                        outputs=folder_templates
-                    )
 
         with gr.Row():
             template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
@@ -439,9 +430,28 @@ def create_ui():
         template_type_label = gr.Label(base_data.template_type, elem_id="template_type",visible=False)
 
         with FormRow():
-            info_textbox = gr.Label("info",elem_id="info_textbox", label="提示信息")
+            template_info_textbox = gr.Textbox("info",elem_id="info_textbox", label="提示信息")
+            with gr.Column():
+                load_txt2img_from_txt = gr.Button('从文本加载模板to txt', elem_id = 'load_txt2img_from_txt_template')
+                load_img2img_from_txt = gr.Button('从文本加载模板to img', elem_id = 'load_img2img_from_txt_template')
+
+        with FormRow():
+            with gr.Column():
+                all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
+                create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
+            with gr.Column():
+                folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
+                create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
+            get_template_info_btn = gr.Button('查看模板信息', elem_id = 'get_template_info')
+            info_textbox = gr.Label("info",elem_id="template_info_textbox", label="提示信息")
+        with FormRow():
             load_txt2img = gr.Button('加载模板 to txt2img', elem_id = 'load_txt2img_template')
             load_img2img = gr.Button('加载模板 to img2img', elem_id = 'load_img2img_template')
+            all_templates_folders.change(
+                fn=change_folder,
+                inputs=[all_templates_folders],
+                outputs=folder_templates
+            )
         connect_ip.click(
             fn=connect_ip_click,
             inputs=[ip_text],
@@ -463,6 +473,9 @@ def create_ui():
         )
         parameter_copypaste.connect_paste(load_txt2img, txt2img_args)
         parameter_copypaste.connect_paste(load_img2img, img2img_args)
+
+        parameter_copypaste.connect_paste_with_text(load_txt2img_from_txt, txt2img_args, template_info_textbox, True)
+        parameter_copypaste.connect_paste_with_text(load_img2img_from_txt, img2img_args, template_info_textbox, False)
         get_template_info_btn.click(
             fn=data_manager.get_info_in_template_path,
             inputs= [all_templates_folders, folder_templates],

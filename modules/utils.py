@@ -18,21 +18,29 @@ def image_path_to_base64(image_path):
 
 
 def get_title_from_model_name(model_name: str) -> str:
-        
     from modules.data_manager import checkpoints_models
     matching_titles = [model.title for model in checkpoints_models if model.model_name == model_name]
 
     if matching_titles:
-        return next(iter(matching_titles))
+        return matching_titles[0]
+    else:
+        return None
+    
+def get_model_name_from_hash(hash:str):
+    from modules.data_manager import checkpoints_models
+    matching_model_name = [model.model_name for model in checkpoints_models if model.title.endswith(f"[{hash}]")]
+
+    if matching_model_name:
+        return matching_model_name[0]
     else:
         return None
     
 def get_model_name_from_title(title: str) -> str:
     from modules.data_manager import checkpoints_models
-    matching_model_name = [model.title for model in checkpoints_models if model.title == title]
+    matching_model_name = [model.model_name for model in checkpoints_models if model.title == title]
 
     if matching_model_name:
-        return next(iter(matching_model_name))
+        return matching_model_name[0]
     else:
         return None
 
@@ -72,3 +80,9 @@ def get_controlnet_model():
             print("Using model: ", item)
             return item
     return "None"
+
+#字符串数量大于某个数截断成省略号
+def get_ellipsis_string(string, length):
+    if len(string) > length:
+        string = string[:length] + "..."
+    return string

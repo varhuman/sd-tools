@@ -13,6 +13,8 @@ class ApiType(Enum):
 class CheckpointModel(BaseModel):
     title: str
     model_name: str
+        # "title": "AsiaFacemix-pruned-fix.safetensors [75230c2f99]",
+        # "model_name": "AsiaFacemix-pruned-fix",
 
 class controlnet_modules(Enum):
     none = "none"
@@ -62,11 +64,10 @@ class Txt2ImgModel(BaseModel):
         if attribute_name == "sd_model_checkpoint":
             title = self.override_settings.get(attribute_name)
             model_name = utils.get_model_name_from_title(title)
-            return model_name[0] if model_name else None
+            return model_name if model_name else None
         return getattr(self, attribute_name)
-
-
-    def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index):
+    
+    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=-1, batch_size=1, n_iter=1, steps=50, cfg_scale=7, width=512, height=512, restore_faces=False, tiling=False, eta=0, sampler_index="Euler a"):
         super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index)
         self.set_override_settings(checkpoint_model)
         return self
@@ -137,8 +138,8 @@ class Img2ImgModel(Txt2ImgModel):
     def get_init_image(self):
         return self.init_images[0] if self.init_images else None
     
-    def create(self, prompt, negative_prompt, checkpoint_model, seed, batch_size, n_iter, steps, cfg_scale, width, height, restore_faces, tiling, eta, sampler_index, inpaint_full_res, inpaint_full_res_padding, init_image, init_mask, mask_blur, inpainting_fill, inpainting_mask_invert,resize_mode, denoising_strength,
-                control_enabled, control_module, control_model, control_weight, control_image, control_mask, control_invert_image, control_resize_mode, control_rgbbgr_mode, control_lowvram, control_processor_res, control_threshold_a, control_threshold_b, control_guidance_start, control_guidance_end, control_guessmode):
+    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=0, batch_size=1, n_iter=0, steps=1000, cfg_scale=0.72, width=0, height=0, restore_faces=False, tiling=False, eta=0.1, sampler_index=0, inpaint_full_res=0, inpaint_full_res_padding=32, init_image="", init_mask="", mask_blur=4, inpainting_fill=0, inpainting_mask_invert=0,resize_mode=1, denoising_strength=0.72,
+                control_enabled=False, control_module="", control_model="", control_weight=0.0, control_image="", control_mask="", control_invert_image=False, control_resize_mode=0, control_rgbbgr_mode=0, control_lowvram=False, control_processor_res=0, control_threshold_a=0.0, control_threshold_b=0.0, control_guidance_start=0, control_guidance_end=0, control_guessmode=0):
         super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index,resize_mode=resize_mode, denoising_strength=denoising_strength)
         self.set_override_settings(checkpoint_model)
         self.setup_img2img_params(init_image, init_mask, mask_blur, inpainting_fill, inpainting_mask_invert, inpaint_full_res, inpaint_full_res_padding)
@@ -210,9 +211,23 @@ def parse_string_to_img2img_model(s: str) -> Img2ImgModel:
     def get_string_value(pattern: str, default: str = ''):
         match = re.search(pattern, s)
         return match.group(1) if match else default
+    *lines, lastline = s.strip().split("\n")
+    if len(re_param.findall(lastline)) < 3:
+        lines.append(lastline)
+        lastline = ''
+    done_with_prompt = False
+    prompt = ""
+    negative_prompt = ""
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if line.startswith("Negative prompt:"):
+            done_with_prompt = True
+            line = line[16:].strip()
 
-    prompt = get_string_value(r'(.*),\s*Negative prompt:', '')
-    negative_prompt = get_string_value(r'Negative prompt: (.*),\s*Steps:', '')
+        if done_with_prompt:
+            negative_prompt += ("" if negative_prompt == "" else "\n") + line
+        else:
+            prompt += ("" if prompt == "" else "\n") + line
     steps = get_int_value(r'Steps: (\d+),')
     sampler = get_string_value(r'Sampler: ([^,]+),', '')
     cfg_scale = get_int_value(r'CFG scale: (\d+),')
@@ -220,12 +235,13 @@ def parse_string_to_img2img_model(s: str) -> Img2ImgModel:
     restoration = get_string_value(r'Face restoration: ([^,]+),', '')
     size = re.search(r'Size: (\d+)x(\d+),', s)
     width, height = int(size.group(1)), int(size.group(2)) if size else (512, 512)
-    checkpoint_model = get_string_value(r'Model hash: ([^,]+),', '')
+    model_hash = get_string_value(r'Model hash: ([^,]+),', '')
     denoising_strength = get_float_value(r'Denoising strength: ([^,]+),')
-    ensd = get_int_value(r'ENSD: (\d+),')
     mask_blur = get_int_value(r'Mask blur: (\d+),')
 
-    return Img2ImgModel(
+    checkpoint_model = utils.get_model_name_from_hash(model_hash) 
+
+    return Img2ImgModel().create(
         prompt=prompt,
         negative_prompt=negative_prompt,
         seed=seed,
@@ -233,11 +249,67 @@ def parse_string_to_img2img_model(s: str) -> Img2ImgModel:
         cfg_scale=cfg_scale,
         width=width,
         height=height,
-        sampler=sampler,
-        restore_faces=restoration,
+        sampler_index=sampler,
+        restore_faces=True if restoration else False,
         checkpoint_model=checkpoint_model,
         denoising_strength=denoising_strength,
         mask_blur=mask_blur
+    )
+    
+re_param_code = r'\s*([\w ]+):\s*("(?:\\"[^,]|\\"|\\|[^\"])+"|[^,]*)(?:,|$)'
+re_param = re.compile(re_param_code)
+def parse_string_to_txt2img_model(s: str) -> Txt2ImgModel:
+    def get_int_value(pattern: str, default: int = 0):
+        match = re.search(pattern, s)
+        return int(match.group(1)) if match else default
+
+    def get_float_value(pattern: str, default: float = 0.0):
+        match = re.search(pattern, s)
+        return float(match.group(1)) if match else default
+
+    def get_string_value(pattern: str, default: str = ''):
+        match = re.search(pattern, s)
+        return match.group(1) if match else default
+
+    *lines, lastline = s.strip().split("\n")
+    prompt = ""
+    negative_prompt = ""
+    if len(re_param.findall(lastline)) < 3:
+        lines.append(lastline)
+        lastline = ''
+    done_with_prompt = False
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if line.startswith("Negative prompt:"):
+            done_with_prompt = True
+            line = line[16:].strip()
+
+        if done_with_prompt:
+            negative_prompt += ("" if negative_prompt == "" else "\n") + line
+        else:
+            prompt += ("" if prompt == "" else "\n") + line
+
+    steps = get_int_value(r'Steps: (\d+),')
+    sampler = get_string_value(r'Sampler: ([^,]+),', '')
+    cfg_scale = get_int_value(r'CFG scale: (\d+),')
+    seed = get_int_value(r'Seed: (\d+),')
+    restoration = get_string_value(r'Face restoration: ([^,]+),', '')
+    size = re.search(r'Size: (\d+)x(\d+),', s)
+    width, height = int(size.group(1)), int(size.group(2)) if size else (512, 512)
+    model_hash = get_string_value(r'Model hash: ([^,]+),', '')
+
+    checkpoint_model = utils.get_model_name_from_hash(model_hash) 
+    return Txt2ImgModel().create(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        seed=seed,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        width=width,
+        height=height,
+        sampler_index=sampler,
+        restore_faces=True if restoration else False,
+        checkpoint_model=checkpoint_model,
     )
 
 
