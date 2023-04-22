@@ -10,12 +10,23 @@ import modules.parameter_copypaste as parameter_copypaste
 
 refresh_symbol = '\U0001f504'  # 🔄
     
+
+refresh_ip_list = []
 def connect_ip_click(ip_text):
-    ip = api_util.ip = ip_text
+    res = []
+    api_util.ip = ip_text
     if api_util.get_models() != []:
-        return "连接成功！"
+        res.append("连接成功！")
+        for component, func in refresh_ip_list:
+            args = func() if callable(func) else func
+
+            for k, v in args.items():
+                setattr(component, k, v)
+            res.append(gr.update(**(args or {})))
+            
+        return res
     else:
-        return "连接失败！IP错误，或者sd服务未开启"
+        return "连接失败！检查ip或sd服务"
 
 def create_refresh_button(refresh_component, refresh_method, refreshed_args, elem_id):
     def refresh():
@@ -72,6 +83,7 @@ def create_txt2img_ui():
                 with FormRow(elem_id="txt2img row1"):
                     checkpoint_model = gr.Dropdown(label='Model', elem_id="txt2img_checkpoint_model", choices=[x.model_name for x in data_manager.checkpoints_models], value=t2i_data.get_checkpoint_model())
                     create_refresh_button(checkpoint_model, data_manager.refresh_checkpoints, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}, "txt2img_checkpoint_model")
+                    refresh_ip_list.append([checkpoint_model, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}])
                 with FormRow(elem_id="txt2img row1"):
                     txt2img_prompt = gr.Textbox(label="prompt", elem_id="txt2img_prompt", value=t2i_data.prompt)
                 with FormRow(elem_id="txt2img row2"):
@@ -136,6 +148,7 @@ def create_img2img_ui():
                     checkpoint_model = gr.Dropdown(label='Model', elem_id="img2img_checkpoint_model", choices=[x.model_name for x in data_manager.checkpoints_models], value=i2i_data.get_checkpoint_model())
                     create_refresh_button(checkpoint_model, data_manager.refresh_checkpoints, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}, "img2img_checkpoint_model")
                     sampler_index = gr.Dropdown(label='Sampling method', elem_id="img2img_sampling", choices=samplers, value=i2i_data.sampler_index)
+                    refresh_ip_list.append([checkpoint_model, lambda: {"choices": [x.model_name for x in data_manager.checkpoints_models]}])
                 with FormRow(elem_id="img2img row1"):
                     img2img_prompt = gr.Textbox(label="prompt", elem_id="img2img_prompt", value=i2i_data.prompt)
                 with FormRow(elem_id="img2img row2"):
@@ -440,48 +453,54 @@ def create_ui():
     ]
 
     with gr.Blocks(css=css, analytics_enabled=False, title="SD Submit Tool") as demo:
-        with FormGroup():
-            with FormRow():
+        with gr.Row() as settings_row:
+            with gr.Column(variant='compact'):
                 with gr.Row().style(equal_height=True):
                     ip_text = gr.Textbox(label='ip', value= api_util.ip , elem_id = 'connect_ip')
                     connect_ip = gr.Button('connect', elem_id = 'connect_ip')
+                with FormRow():
+                    template_info_textbox = gr.Textbox("复制sd生图参数到这儿",elem_id="info_textbox", label="参数信息")
+                    with gr.Row():
+                        load_txt2img_from_txt = gr.Button('从文本加载模板to txt', elem_id = 'load_txt2img_from_txt_template')
+                        load_img2img_from_txt = gr.Button('从文本加载模板to img', elem_id = 'load_img2img_from_txt_template')
 
-        with gr.Row():
-            template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
-            template_folder = gr.Textbox(label="正在编辑的模板所处文件夹", elem_id="template_folder", value=data_manager.choose_folder)
-            save_txt = gr.Button('保存txt模板', elem_id = 'save_txt_template')
-            save_img = gr.Button('保存img模板', elem_id = 'save_img_template')
+                with FormRow():
+                    with gr.Row():
+                        all_templates_folders = gr.Dropdown(label='选择模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
+                        create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
+                    with gr.Row():
+                        folder_templates = gr.Dropdown(label='选择文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
+                        create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
+                    get_template_info_btn = gr.Button('查看模板信息', elem_id = 'get_template_info')
+                    
+                with FormRow():
+                    load_txt2img = gr.Button('加载模板 to txt2img', elem_id = 'load_txt2img_template')
+                    load_img2img = gr.Button('加载模板 to img2img', elem_id = 'load_img2img_template')
+                    all_templates_folders.change(
+                        fn=change_folder,
+                        inputs=[all_templates_folders],
+                        outputs=folder_templates
+                    )
+                
 
-        template_option = gr.Textbox(label="特殊设置", elem_id="template_option", value=base_data.options, visible=False)
-        template_type_label = gr.Label(base_data.template_type, elem_id="template_type",visible=False)
+            template_option = gr.Textbox(label="特殊设置", elem_id="template_option", value=base_data.options, visible=False)
+            template_type_label = gr.Label(base_data.template_type, elem_id="template_type",visible=False)
 
-        with FormRow():
-            template_info_textbox = gr.Textbox("info",elem_id="info_textbox", label="提示信息")
-            with gr.Column():
-                load_txt2img_from_txt = gr.Button('从文本加载模板to txt', elem_id = 'load_txt2img_from_txt_template')
-                load_img2img_from_txt = gr.Button('从文本加载模板to img', elem_id = 'load_img2img_from_txt_template')
+            with gr.Column(variant='compact'):
+                with gr.Row():
+                    template_folder = gr.Textbox(label="正在编辑的模板所处文件夹", elem_id="template_folder", value=data_manager.choose_folder)
+                    template_name = gr.Textbox(label="正在编辑的模板名称", elem_id="template_name", value=base_data.template_name)
 
-        with FormRow():
-            with gr.Column():
-                all_templates_folders = gr.Dropdown(label='所有模板文件夹', elem_id="all_templates_folders", choices=[""] + list(data_manager.templates_folders), value=data_manager.choose_folder)
-                create_refresh_button(all_templates_folders, data_manager.refresh_templates_folders, lambda: {"choices": [""] + list(data_manager.templates_folders)}, "refresh_all_templates_folders")
-            with gr.Column():
-                folder_templates = gr.Dropdown(label='所选文件夹中模板', elem_id="folder_templates", choices=[""] + list(data_manager.templates), value=data_manager.choose_template)
-                create_refresh_button(folder_templates, data_manager.refresh_templates, lambda: {"choices": [""] + list(data_manager.templates)}, "refresh_all_templates_in_folder")
-            get_template_info_btn = gr.Button('查看模板信息', elem_id = 'get_template_info')
-            info_textbox = gr.Label("info",elem_id="template_info_textbox", label="提示信息")
-        with FormRow():
-            load_txt2img = gr.Button('加载模板 to txt2img', elem_id = 'load_txt2img_template')
-            load_img2img = gr.Button('加载模板 to img2img', elem_id = 'load_img2img_template')
-            all_templates_folders.change(
-                fn=change_folder,
-                inputs=[all_templates_folders],
-                outputs=folder_templates
-            )
+                with gr.Row():
+                    save_txt = gr.Button('保存txt模板', elem_id = 'save_txt_template')
+                    save_img = gr.Button('保存img模板', elem_id = 'save_img_template')
+
+                info_textbox = gr.Label("info",elem_id="template_info_textbox", label="提示信息")
+
         connect_ip.click(
             fn=connect_ip_click,
             inputs=[ip_text],
-            outputs=[info_textbox]
+            outputs=[info_textbox] + [x[0] for x in refresh_ip_list]
         )
         save_txt.click(
             fn=data_manager.save_parameter,
@@ -497,8 +516,8 @@ def create_ui():
                 info_textbox
             ]
         )
-        parameter_copypaste.connect_paste(load_txt2img, txt2img_args)
-        parameter_copypaste.connect_paste(load_img2img, img2img_args)
+        parameter_copypaste.connect_paste(load_txt2img, txt2img_args, info_textbox, template_folder, template_name)
+        parameter_copypaste.connect_paste(load_img2img, img2img_args, info_textbox, template_folder, template_name)
 
         parameter_copypaste.connect_paste_with_text(load_txt2img_from_txt, txt2img_args, template_info_textbox, True)
         parameter_copypaste.connect_paste_with_text(load_img2img_from_txt, img2img_args, template_info_textbox, False)

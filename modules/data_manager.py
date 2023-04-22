@@ -196,12 +196,13 @@ def get_info_in_template_path(template_path, name):
         return "错误的文件夹路径"
     if not name:
         return "错误的文件名"
-    global pre_choose_template
+    global pre_choose_template, choose_folder, choose_template
     choose_folder = template_path
     temp_data = template_utils.get_model_from_folder(choose_folder, name)
+    choose_template = name
     pre_choose_template = temp_data
     res = "读取成功！\n"+ str(pre_choose_template.api_model)
-    return utils.get_ellipsis_string(res, 20)
+    return utils.get_ellipsis_string(res, 200)
 
 def save_parameter(template_path, name, options, template_type_label, *args):
     global choose_folder

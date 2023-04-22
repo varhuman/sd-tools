@@ -64,7 +64,7 @@ class Txt2ImgModel(BaseModel):
         if attribute_name == "sd_model_checkpoint":
             title = self.override_settings.get(attribute_name)
             model_name = utils.get_model_name_from_title(title)
-            return model_name if model_name else None
+            return model_name if model_name else title
         return getattr(self, attribute_name)
     
     def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=-1, batch_size=1, n_iter=1, steps=50, cfg_scale=7, width=512, height=512, restore_faces=False, tiling=False, eta=0, sampler_index="Euler a"):

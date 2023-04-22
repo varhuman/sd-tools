@@ -44,9 +44,11 @@ def get_models():
     if response.status_code == 200:
         result = json.loads(response.text)
         models = [CheckpointModel(**model) for model in result]
+        data_manager.checkpoints_models = models
         return models
     else:
         print(f"Request failed with status code {response.status_code}: {response.text}")
+        data_manager.checkpoints_models = []
         return []
 
 async def txt2img_post_async(img_name, txt2img_model: Txt2ImgModel, output_folder: str):
