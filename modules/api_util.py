@@ -107,11 +107,13 @@ async def img2img_post_async(img_name, img2img_model: Img2ImgModel, output_folde
 
 async def submit_all(mention_label:gr.Label):
     submit_list = data_manager.submit_list
+    last_save_path = ""
     for i in range(len(submit_list)):
         if submit_list[i].is_submit:
             times = submit_list[i].submit_times
             folder_name = submit_list[i].submit_folder
             save_path = template_utils.get_image_save_path(folder_name)
+            last_save_path = save_path
             image_save_path = os.path.join(save_path, "images")
             grids_save_path = os.path.join(save_path, "grids")
             file_util.check_folder(image_save_path)
@@ -155,4 +157,5 @@ async def submit_all(mention_label:gr.Label):
                 if len(images) > 1:
                     save_image_name = f"{folder_name}_grid_{j}"
                     utils.save_images_to_grids(images, os.path.join(grids_save_path, save_image_name), image_titles)
-    return "处理完成"
+    data_manager.submited_folder = last_save_path
+    return f"已完成：{last_save_path}"

@@ -50,13 +50,13 @@ class Txt2ImgModel(BaseModel):
     seed: int = -1
     batch_size: int = 1 #每次张数
     n_iter: int = 1 # 生成批次
-    steps: int = 50
+    steps: int = 20
     cfg_scale: int = 7
     width: int = 512
     height: int = 512
     restore_faces: bool = False
     tiling: bool = False
-    eta: int = 0
+    eta: int = 31337
     script_args: List[str] = []
     sampler_index: str = "Euler a"
 
@@ -67,7 +67,7 @@ class Txt2ImgModel(BaseModel):
             return model_name if model_name else title
         return getattr(self, attribute_name)
     
-    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=-1, batch_size=1, n_iter=1, steps=50, cfg_scale=7, width=512, height=512, restore_faces=False, tiling=False, eta=0, sampler_index="Euler a"):
+    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=-1, batch_size=1, n_iter=1, steps=20, cfg_scale=7, width=512, height=512, restore_faces=False, tiling=False, eta=31337, sampler_index="Euler a"):
         super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index)
         self.set_override_settings(checkpoint_model)
         return self
@@ -138,7 +138,7 @@ class Img2ImgModel(Txt2ImgModel):
     def get_init_image(self):
         return self.init_images[0] if self.init_images else None
     
-    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=0, batch_size=1, n_iter=0, steps=1000, cfg_scale=0.72, width=0, height=0, restore_faces=False, tiling=False, eta=0.1, sampler_index=0, inpaint_full_res=0, inpaint_full_res_padding=32, init_image="", init_mask="", mask_blur=4, inpainting_fill=0, inpainting_mask_invert=0,resize_mode=1, denoising_strength=0.72,
+    def create(self, prompt="", negative_prompt="", checkpoint_model="", seed=0, batch_size=1, n_iter=1, steps=20, cfg_scale=0.72, width=512, height=512, restore_faces=False, tiling=False, eta=31337, sampler_index=0, inpaint_full_res=0, inpaint_full_res_padding=32, init_image="", init_mask="", mask_blur=4, inpainting_fill=0, inpainting_mask_invert=0,resize_mode=1, denoising_strength=0.72,
                 control_enabled=False, control_module="", control_model="", control_weight=0.0, control_image="", control_mask="", control_invert_image=False, control_resize_mode=0, control_rgbbgr_mode=0, control_lowvram=False, control_processor_res=0, control_threshold_a=0.0, control_threshold_b=0.0, control_guidance_start=0, control_guidance_end=0, control_guessmode=0):
         super().__init__(prompt=prompt, negative_prompt=negative_prompt, seed=seed, batch_size=batch_size, n_iter=n_iter, steps=steps, cfg_scale=cfg_scale, width=width, height=height, restore_faces=restore_faces, tiling=tiling, eta=eta, sampler_index=sampler_index,resize_mode=resize_mode, denoising_strength=denoising_strength)
         self.set_override_settings(checkpoint_model)

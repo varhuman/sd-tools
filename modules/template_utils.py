@@ -62,6 +62,8 @@ def get_model_from_template(json):
 
 def get_input_images_save_path(folder):
     save_path = os.path.join(work_dir, folder, "input_images")
+    #获得相对路径
+    save_path = os.path.relpath(save_path)
     return save_path
 
 #将apiTypeModel转换成json并存储到template得指定文件夹下

@@ -101,7 +101,7 @@ def create_txt2img_ui():
                 height = gr.Slider(minimum=64, maximum=1024, step=8, elem_id="txt2img_height", label="height", value=t2i_data.height)
                 batch_size = gr.Slider(minimum=1, maximum=1024, step=1, elem_id="txt2img_batch_size", label="batch_size", value=t2i_data.batch_size)
                 batch_count = gr.Slider(minimum=1, maximum=100, step=1, elem_id="txt2img_n_iter", label="n_iter", value=t2i_data.n_iter)
-                eta = gr.Slider(minimum=0, maximum=10, step=1, elem_id="txt2img_eta", label="eta", value=t2i_data.eta)
+                eta = gr.Number(elem_id="txt2img_eta", label="eta", value=t2i_data.eta)
                 # t2i_data.script_args = gr.Textbox(label="script_args", elem_id="txt2img_script_args", value=t2i_data.script_args) # not use for now
         txt2img_args = [
             (txt2img_prompt, "prompt"),
@@ -301,6 +301,12 @@ def submit_enabled_change_folder(item: SubmitFolderModel):
         
     return fn
 
+def open_submit_folder():
+    path = data_manager.submited_folder if data_manager.submited_folder else template_utils.work_dir
+    if os.path.exists(path):
+        os.startfile(path)
+    else:
+        return "奇怪，目录不存在"
 
 def refresh_submit_table():
     data_manager.refresh_submit_list()
@@ -315,14 +321,21 @@ def create_submit():
     with gr.Blocks() as submit_tab:
         with FormRow():
             # check = gr.Button(value="Check for updates")
-            # create_refresh_button(submit_tab, refresh_submit_table, lambda: {"update": ()}, "refresh_submit_list")
+            create_refresh_button(submit_tab, refresh_submit_table, lambda: {"update": ()}, "refresh_submit_list")
             reset_submit_btn = gr.Button("全选/取消全选", elem_id="reset_submit_btn")
             message = gr.Label("提示信息", label="提示信息")
+            open_folder_btn = gr.Button("打开目录", elem_id="open_folder_btn")
+
         submit_btn = gr.Button("提交", elem_id="submit_btn")
         submit_btn.click(
             fn=api_util.submit_all,
             inputs=[message],
             outputs=[message]
+        )
+        open_folder_btn.click(
+            fn=open_submit_folder,
+            inputs=[],
+            outputs=[]
         )
         # table = gr.HTML(lambda: generate_submit_table()) 虽然可以动态刷新列表，但是效果不理想，暂时不用
 

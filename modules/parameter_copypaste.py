@@ -45,7 +45,7 @@ def paste_func(paste_fields, template_model:TemplateBaseModel, folder = None, te
                 #if component type is pil
                 ty = type(component)
                 ishas = hasattr(component, 'pil')
-                if ty == gr.components.Image and ishas:
+                if ty == gr.components.Image:
                     res.append(v)
                 else:
                     res.append(gr.update())

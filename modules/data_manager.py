@@ -18,6 +18,8 @@ choose_template = None
 choose_folder = None
 submit_list: list[SubmitFolderModel] = []
 
+submited_folder = ""
+
 pre_choose_template:TemplateBaseModel = None
 
 samplers_k_diffusion = [
