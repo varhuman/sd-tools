@@ -352,6 +352,7 @@ class SubmitItemModel(BaseModel):
     data: TemplateBaseModel = None
     submit_times: int = 1
     is_submit: bool = True
+    submit_folder: str = ""
 
 class SubmitFolderModel(BaseModel):
     is_submit: bool = True

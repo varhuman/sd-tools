@@ -126,6 +126,7 @@ def refresh_submit_list():
             submit_item.submit_template = template
             temp_data = template_utils.get_model_from_folder(folder, template)
             submit_item.data = temp_data
+            submit_item.submit_folder = folder
             new_submit_folder.submit_items.append(submit_item)
 
             if copy_submit_folder is not None:

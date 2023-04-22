@@ -6,7 +6,6 @@ from ui_components import FormRow, ToolButton, FormGroup
 import modules.template_utils as template_utils
 import os
 import modules.api_util as api_util
-import time
 import modules.parameter_copypaste as parameter_copypaste
 
 refresh_symbol = '\U0001f504'  # 🔄
@@ -240,21 +239,47 @@ def create_submit_item(item: SubmitItemModel):
             submit_template = gr.Label(item.submit_template)
             submit_times = gr.Slider(label='执行次数', value=item.submit_times, step=1, minimum=1, maximum=30, elem_id = 'submit_times' + item.submit_template)
             submit_times.change(
-                fn=submit_times_change(item=item),
+                fn=submit_times_change_item(item=item),
                 inputs=[submit_times],
-            )  
+            )
+            is_submit.change(
+                fn=submit_enabled_change_item(item=item),
+                inputs=[is_submit],
+            )
     return is_submit, submit_template, submit_times, submit_item
 
-def submit_times_change(item: SubmitItemModel):
+def submit_times_change_item(item: SubmitItemModel):
     def fn(times, item=item):
-        item.submit_times = times
+        submit_list = data_manager.submit_list
+        for submit_folder in submit_list:
+            if submit_folder.submit_folder == item.submit_folder:
+                for submit_item in submit_folder.submit_items:
+                    if submit_item.submit_template == item.submit_template:
+                        submit_item.submit_times = times
+                        return
+    return fn
+
+def submit_enabled_change_item(item: SubmitItemModel):
+    def fn(enabled, item=item):
+        submit_list = data_manager.submit_list
+        for submit_folder in submit_list:
+            if submit_folder.submit_folder == item.submit_folder:
+                for submit_item in submit_folder.submit_items:
+                    if submit_item.submit_template == item.submit_template:
+                        submit_item.is_submit = enabled
+                        return
     return fn
 
 def submit_times_change_folder(item: SubmitFolderModel):
     def fn(times, item=item):
-        item.submit_times = times
+        submit_list = data_manager.submit_list
+        for submit_item in submit_list:
+            if submit_item.submit_folder == item.submit_folder:
+                submit_item.submit_times = times
+                return
+
     return fn
-def submit_enabled_change(item: SubmitFolderModel):
+def submit_enabled_change_folder(item: SubmitFolderModel):
     def fn(enabled, item=item):
         submit_list = data_manager.submit_list
         for submit_item in submit_list:
@@ -262,6 +287,7 @@ def submit_enabled_change(item: SubmitFolderModel):
                 submit_item.is_submit = enabled
         
     return fn
+
 
 def refresh_submit_table():
     data_manager.refresh_submit_list()
@@ -306,7 +332,7 @@ def create_submit():
                     submit_times = gr.Slider(label='执行次数（整体)', value=times, step=1, minimum=1, maximum=30, elem_id = 'submit_times' + folder_name)
                     folder_name = gr.Label(folder_name, label="文件夹名称")
                     enabled.change(
-                        fn=submit_enabled_change(item=submit_folder),
+                        fn=submit_enabled_change_folder(item=submit_folder),
                         inputs=[enabled],
                     )
                     submit_times.change(
