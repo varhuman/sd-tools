@@ -10,6 +10,7 @@ import os
 from io import BytesIO
 import requests
 import modules.template_utils as template_utils
+import modules.utils as utils
 
 modeltitle = "nightSkyYOZORAStyle_yozoraV1Origin.safetensors [e7bf829cff]"
 input_image_url = "C:/Users/Ieunn/Pictures/00013-814328471.jpg"
@@ -31,63 +32,6 @@ def save_base64_image(base64_data, output_path):
     image = Image.open(BytesIO(image_data))
     image.save(output_path, "JPEG")
 
-from PIL import Image, ImageDraw, ImageFont
-
-def save_base64_images_to_grids(base64_data_list, output_path, labels, images_per_row = 4):
-    images = [Image.open(BytesIO(base64.b64decode(base64_data))) for base64_data in base64_data_list]
-    save_images_to_grids(images, output_path, labels, images_per_row)
-
-def save_images_to_grids(images, output_path, labels, images_per_row = 4):
-    # 计算拼接后的图片尺寸
-    max_width = max([img.size[0] for img in images])
-    max_height = max([img.size[1] for img in images])
-    total_rows = (len(images) + images_per_row - 1) // images_per_row
-    total_width = max_width * images_per_row
-    total_height = max_height * total_rows
-
-    # 创建一个空白画布，用于绘制拼接后的图片
-    canvas = Image.new("RGB", (total_width, total_height), color=(255, 255, 255))
-    
-    # 设置字体和字体大小
-    font = ImageFont.truetype("arial.ttf", size=20)
-    draw = ImageDraw.Draw(canvas)
-
-    # 将每张图片及其对应的标签放置到合适的位置
-    for i, (image, label) in enumerate(zip(images, labels)):
-        x = (i % images_per_row) * max_width
-        y = (i // images_per_row) * max_height
-        canvas.paste(image, (x, y))
-        draw.text((x, y + max_height - 30), label, font=font, fill=(0, 0, 0))
-
-    output_path = output_path + ".jpg"
-
-    # 保存拼接后的图片
-    canvas.save(output_path, "JPEG")
-
-def merge_images_horizontally(base64_data_list, images_per_row, output_path):
-    images = [Image.open(BytesIO(base64.b64decode(base64_data))) for base64_data in base64_data_list]
-    # 获取每张图片的宽度和高度
-    img_width, img_height = images[0].size
-
-    # 计算合并后图片的总宽度
-    total_width = img_width * images_per_row
-
-    # 计算合并后图片的总高度
-    total_height = img_height * ((len(images) - 1) // images_per_row + 1)
-
-    # 创建一个新的空白图片，用于存放合并后的图片
-    merged_image = Image.new("RGB", (total_width, total_height))
-
-    # 遍历图片列表，将每张图片粘贴到新创建的空白图片中
-    for index, image in enumerate(images):
-        x = img_width * (index % images_per_row)
-        y = img_height * (index // images_per_row)
-        merged_image.paste(image, (x, y))
-
-    output_path = output_path + ".jpg"
-    # 保存合并后的图片
-    merged_image.save(output_path)
-    return merged_image
 
 
 def get_models():
@@ -127,9 +71,9 @@ async def txt2img_post_async(img_name, txt2img_model: Txt2ImgModel, output_folde
                 image_path = os.path.join(output_folder, save_name)
                 save_base64_image(image_base64, image_path)
                 print(f"Image {index} saved at {image_path}")
-                return image_base64
+                return True, image_base64
         else:
-            print(f"Request failed with status code {response.status_code}: {response.text}")
+            return False, print(f"Request failed with status code {response.status_code}: {response.text}")
 
 async def img2img_post_async(img_name, img2img_model: Img2ImgModel, output_folder: str):
     url = f"http://{ip}/sdapi/v1/img2img"
@@ -153,9 +97,9 @@ async def img2img_post_async(img_name, img2img_model: Img2ImgModel, output_folde
                 image_path = os.path.join(output_folder, save_name)
                 save_base64_image(image_base64, image_path)
                 print(f"Image {index} saved at {image_path}")
-                return image_base64
+                return True, image_base64
         else:
-            print(f"Request failed with status code {response.status_code}: {response.text}")
+            return False, print(f"Request failed with status code {response.status_code}: {response.text}")
 
 
 
@@ -185,18 +129,21 @@ async def submit_all(mention_label:gr.Label):
                             if submit_template.data.template_type  == "txt2img":
                                 save_image_name = f"{template_name}_txt_{j}_{k}"
                                 txt2img_model = submit_template.data.api_model
-                                base_64 = await txt2img_post_async(save_image_name, txt2img_model, image_save_path)
-                                sub_images.append(base_64)
+                                is_success, res = await txt2img_post_async(save_image_name, txt2img_model, image_save_path)
+
                             elif submit_template.data.template_type  == "img2img":
                                 save_image_name = f"{template_name}_img_{j}_{k}"
                                 img2img_model = submit_template.data.api_model
-                                base_64 = await img2img_post_async(save_image_name, img2img_model, image_save_path)
-                                sub_images.append(base_64)
-                            
+                                is_success, res = await img2img_post_async(save_image_name, img2img_model, image_save_path)
+
+                            if is_success:    
+                                sub_images.append(res)
+                            else:
+                                return f"提交失败！报错如下：{res}"
                             mention_label.update(value = f"成功生成{folder_name}\\{template_name}!")
                         save_image_name = f"{template_name}_sub_grid_{j}"
                         if len(sub_images) > 1:
-                            image = merge_images_horizontally(sub_images, 3, os.path.join(grids_save_path, save_image_name))
+                            image = utils.merge_images_horizontally(sub_images, 3, os.path.join(grids_save_path, save_image_name))
                             images.append(image)
                         elif len(sub_images) == 1:
                             image_data = base64.b64decode(sub_images[0])
@@ -205,5 +152,5 @@ async def submit_all(mention_label:gr.Label):
                         image_titles.append(template_name)
                 if len(images) > 1:
                     save_image_name = f"{folder_name}_grid_{j}"
-                    save_images_to_grids(images, os.path.join(grids_save_path, save_image_name), image_titles)
+                    utils.save_images_to_grids(images, os.path.join(grids_save_path, save_image_name), image_titles)
     return "处理完成"
