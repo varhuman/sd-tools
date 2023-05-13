@@ -12,18 +12,6 @@ import requests
 import modules.template_utils as template_utils
 import modules.utils as utils
 
-modeltitle = "nightSkyYOZORAStyle_yozoraV1Origin.safetensors [e7bf829cff]"
-input_image_url = "C:/Users/Ieunn/Pictures/00013-814328471.jpg"
-input_mask_url = ""
-setup_args = {
-    "prompt": "white hair girl, red eyes, fashionclothes", #for txt2img
-    #"init_images": "imgurl", #for img2img
-    "steps": 50,
-}
-controlnet_args = {
-    "module": "depth",
-    "model": "control_sd15_depth [fef5e48e]",
-}
 ip = "127.0.0.1:7860"
 
 # ... Txt2ImgModel definition ...
@@ -31,8 +19,6 @@ def save_base64_image(base64_data, output_path):
     image_data = base64.b64decode(base64_data)
     image = Image.open(BytesIO(image_data))
     image.save(output_path, "JPEG")
-
-
 
 def get_models():
     url = f"http://{ip}/sdapi/v1/sd-models"

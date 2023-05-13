@@ -34,17 +34,7 @@ samplers_k_diffusion = [
 checkpoints_models:list[CheckpointModel] = []
 
 #这个如果需要从sd中获取，需要改controlnet的api代码，降低门槛，直接写死好了，下面是我的model名字
-control_net_models:list[str] = [
-    None,
-    "control_canny-fp16 [e3fe7712]",
-    "control_depth-fp16 [400750f6]",
-    "control_hed-fp16 [13fee50b]",
-    "control_mlsd-fp16 [e3705cfa]",
-    "control_normal-fp16 [63f96f7c]",
-    "control_openpose-fp16 [9ca67cc5]",
-    "control_scribble-fp16 [c508311e]",
-    "control_seg-fp16 [b9c1cc12]",
-]
+control_net_models:list[str] = []
 
 control_net_modules = [
             "none",
@@ -94,7 +84,7 @@ control_net_modules = [
 def refresh_checkpoints():
     global checkpoints_models
     checkpoints_models = api_util.get_models()
-    # return checkpoints_models
+    return checkpoints_models != []
 
 def refresh_templates_folders():
     global templates_folders

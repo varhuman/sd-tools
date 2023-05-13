@@ -314,16 +314,16 @@ def parse_string_to_txt2img_model(s: str) -> Txt2ImgModel:
 
 
 class ControlNet_Model(BaseModel):
-    enabled: bool = True
-    module: str = controlnet_modules.openpose.value
-    model: str = "control_openpose-fp16 [9ca67cc5]"
-    weight: float = 1.0
-    image: str = None
-    mask: str = None
-    invert_image: bool = False
-    resize_mode: int = 1
+    enabled: bool = True #启用
+    module: str = controlnet_modules.openpose.value #模式 openpose、canny等
+    model: str = "control_openpose-fp16 [9ca67cc5]" # 模型
+    weight: float = 1.0 #权重
+    image: str = None #图片
+    mask: str = None #图片遮罩，一般不用
+    invert_image: bool = False #反转图片
+    resize_mode: int = 1 #0:Just Resize 1: Inner Fit 2: Outer Fit
     rgbbgr_mode: bool = False
-    lowvram: bool = False
+    lowvram: bool = False #低显存需要开启
     processor_res: int = 512
     threshold_a: int = 64
     threshold_b: int = 64

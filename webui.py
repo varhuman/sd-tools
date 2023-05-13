@@ -7,9 +7,18 @@ import modules.template_utils as template_utils
 import os
 import modules.api_util as api_util
 import modules.parameter_copypaste as parameter_copypaste
+from dotenv import load_dotenv
 
+# 获取当前脚本的绝对路径
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 构建.env文件的绝对路径
+env_path = os.path.join(script_dir, '.env')
+
+# 加载.env文件
+load_dotenv(dotenv_path=env_path)
 refresh_symbol = '\U0001f504'  # 🔄
-    
+info_text = "提示信息放这里"
 
 refresh_ip_list = []
 def connect_ip_click(ip_text):
@@ -17,16 +26,16 @@ def connect_ip_click(ip_text):
     api_util.ip = ip_text
     if api_util.get_models() != []:
         res.append("连接成功！")
-        for component, func in refresh_ip_list:
-            args = func() if callable(func) else func
-
-            for k, v in args.items():
-                setattr(component, k, v)
-            res.append(gr.update(**(args or {})))
-            
-        return res
     else:
-        return "连接失败！检查ip或sd服务"
+        res.append("连接失败！检查ip或sd服务")
+    for component, func in refresh_ip_list:
+        args = func() if callable(func) else func
+
+        for k, v in args.items():
+            setattr(component, k, v)
+        res.append(gr.update(**(args or {})))
+        
+    return res
 
 def create_refresh_button(refresh_component, refresh_method, refreshed_args, elem_id):
     def refresh():
@@ -435,12 +444,21 @@ def generate_submit_table():
     return table_code
 
 def init_data():
+    global info_text
     ip = os.getenv("CONNECT_IP")
+    c_models_str = os.getenv("control_net_models")
+    temp_list = c_models_str.split(',')
+    c_models = [item.strip() for item in temp_list]
+    data_manager.control_net_models = [None, c_models]
     api_util.ip = ip
-    data_manager.refresh_checkpoints()
+    is_connect = data_manager.refresh_checkpoints()
     data_manager.refresh_templates_folders()
     data_manager.refresh_templates()
     data_manager.refresh_submit_list()
+    if not is_connect:
+        info_text = "未连接到服务器，请检查服务器是否开启,或者检查ip地址是否正确"
+    else:
+        info_text = "已连接到服务器!"
 
 
 def create_ui():
@@ -508,7 +526,7 @@ def create_ui():
                     save_txt = gr.Button('保存txt模板', elem_id = 'save_txt_template')
                     save_img = gr.Button('保存img模板', elem_id = 'save_img_template')
 
-                info_textbox = gr.Label("info",elem_id="template_info_textbox", label="提示信息")
+                info_textbox = gr.Label(info_text,elem_id="template_info_textbox", label="提示信息")
 
         connect_ip.click(
             fn=connect_ip_click,

@@ -2,7 +2,7 @@ import os
 import modules.file_util as file_util
 import json
 from modules.api_models import Txt2ImgModel, ApiType, TemplateBaseModel, Img2ImgModel, to_serializable
-import modules.log_util as logger
+from modules.log_util import logger
 from datetime import datetime
 
 work_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
