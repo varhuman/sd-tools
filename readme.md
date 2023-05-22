@@ -1,7 +1,7 @@
 # Stable Diffusion Tool
 
 欢迎使用我为 [stable diffusion](https://github.com/facebookresearch/stable_diffusion) 开发的辅助工具。
-
+> 目前我在几个私人项目中已经用上了这个项目功能，并且我将其template管理部分抽离出了一个新的仓库[sd-styler](https://github.com/varhuman/sd_styler),这个仓库只有一些template实现和管理，不包含任何ui页面，但是开箱即用，感兴趣可以看看，有问题随时私聊，目前也在开发中~
 本工具的主要目标是解决以下三个问题：
 
 1. **批量生成局限性**：虽然 stable diffusion 支持多样式（styles）的生成，但是这种方式并不尽人意。另外，我们不能精确控制每个样式的多个参数。
